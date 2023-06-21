@@ -43,7 +43,7 @@ app.post('/webhook', (req, res) => {
   });
 });
 
-app.delete('/webhook', (req, res) => {
+app.delete('/webhook/:id', (req, res) => {
   const { id } = req.body; // subscription ID
 
   if (!id) return res.status(400).json({ message: 'ID required' });
@@ -116,3 +116,11 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // id: the ID for the appointment, get the details through the get appointment API call
 // calendarID: the ID of the calendar for the appointment.
 // appointmentTypeID: the ID of the type of the appointment.
+
+// FIXME:
+// :id should be retrieved from req.params, not req.body.
+
+// TODO:
+// use GET /appointments to make API call to OpenDental
+// create OpenDental helpers
+// integrate OpenDental into POST /notification. use 'switch & cases'
