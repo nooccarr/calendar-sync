@@ -118,6 +118,7 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // appointmentTypeID: the ID of the type of the appointment.
 
 // FIXME:
+// update subscriptions to new ngrok public ip address
 // :id should be retrieved from req.params, not req.body.
 
 // TODO:
