@@ -5,10 +5,7 @@ let listAllActiveWebhooks = (callback) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: {
-      accept: 'application/json',
-      authorization: process.env.AUTHORIZATION
-    }
+    headers: { authorization: process.env.AUTHORIZATION }
   };
 
   axios
@@ -17,7 +14,7 @@ let listAllActiveWebhooks = (callback) => {
     .catch(error => callback(error));
 };
 
-let createNewWebhook = (callback) => {
+let createNewWebhook = (event, target, callback) => {
   const options = {
     method: 'POST',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
@@ -26,10 +23,7 @@ let createNewWebhook = (callback) => {
       // 'content-type': 'application/json',
       authorization: process.env.AUTHORIZATION
     },
-    data: {
-      event: 'appointment.rescheduled',
-      target: 'http://localhost:3000/notification'
-    }
+    data: { event, target }
   };
 
   axios
@@ -38,13 +32,11 @@ let createNewWebhook = (callback) => {
     .catch(error => callback(error));
 };
 
-let deleteWebhook = (callback) => {
+let deleteWebhook = (id, callback) => {
   const options = {
     method: 'DELETE',
-    url: 'https://acuityscheduling.com/api/v1/webhooks/750770',
-    headers: {
-      authorization: process.env.AUTHORIZATION
-    }
+    url: `https://acuityscheduling.com/api/v1/webhooks/${id}`,
+    headers: { authorization: process.env.AUTHORIZATION }
   };
 
   axios

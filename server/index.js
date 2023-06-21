@@ -9,73 +9,81 @@ const webhookHelpers = require('./helpers/webhookHelpers');
 
 // middleware
 app.use(express.json());
-
-// // event listener
-// app.on('testEvent', () => {
-//   console.log('the testEvent occured');
-// })
-
-// // event emitter
-// app.get('/test', (req, res) => {
-//   app.emit('testEvent');
-//   return res.status(200).end();
-// });
+app.use(express.urlencoded({ extended: true }));
 
 // routes
-app.post('/notification', express.json({ type: 'application/json' }), (req, res) => {
-  console.log(req.body);
+app.post('/notification', (req, res) => {
+  console.log('Webhook Event:', req.body);
   res.status(200).send('ok');
 });
 
 app.get('/webhook', (req, res) => {
   webhookHelpers.listAllActiveWebhooks((err, response) => {
     if (err) {
-      console.error(err);
-      res.status(400).end();
+      const { status_code, message } = err.response.data;
+      res.status(status_code).end({ message });
     } else {
-      console.log('Subscriptions:', response.data);
-      res.status(200).end();
+      res.status(200).json(response.data);
     }
   })
 });
 
 app.post('/webhook', (req, res) => {
-  webhookHelpers.createNewWebhook((err, response) => {
+  const { event, target } = req.body; // target: webhook endpoint
+
+  if (!event || !target) return res.status(400).json({ message: 'Event and target are required' });
+
+  webhookHelpers.createNewWebhook(event, target, (err, response) => {
     if (err) {
-      console.log('CONFIG:', err.config);
-      console.log('DATA:', err.response.data);
-      res.status(err.response.data.status_code).end();
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
     } else {
-      console.log('Added Subscription:', response.data);
-      res.status(200).end();
+      res.status(200).json(response.data);
     }
   });
 });
 
 app.delete('/webhook', (req, res) => {
-  webhookHelpers.deleteWebhook((err, response) => {
+  const { id } = req.body; // subscription ID
+
+  if (!id) return res.status(400).json({ message: 'ID required' });
+
+  webhookHelpers.deleteWebhook(id, (err, response) => {
     if (err) {
-      console.log(err.response.data);
-      res.status(err.response.data.status_code).end();
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
     } else {
-      console.log('Removed Subscription');
-      res.status(200).send();
+      res.status(200).json({ message: `Subscription with id ${id} deleted` });
     }
   })
 });
 
-// app.get('/appointments', (req, res) => {
-//   apiHelpers.listAllAppointments((err, response) => {
-//     if (err) {
-//       res.status(err.response.data.status_code).end();
-//     } else {
-//       console.log('DATA:', response);
-//       res.status(200).end();
-//     }
-//   })
-// });
+app.get('/appointments', (req, res) => {
+  apiHelpers.getAllAppointments((err, response) => {
+    if (err) {
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
+    } else {
+      res.status(200).json(response.data);
+    }
+  })
+});
 
-// // FIXME:
+app.get('/appointments/:id', (req, res) => {
+  const { id } = req.body;
+
+  if (!id) return res.status(400).json({ message: 'ID required' });
+
+  apiHelpers.getAppointmentById(id, (err, response) => {
+    if (err) {
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
+    } else {
+      res.status(200).json(response.data);
+    }
+  });
+});
+
 // app.post('/appointments', (req, res) => {
 //   apiHelpers.createNewAppointment((err, response) => {
 //     if (err) {
@@ -90,7 +98,21 @@ app.delete('/webhook', (req, res) => {
 // });
 
 app.get('/', (req, res) => {
-  res.send('Hello world');
+  res.send('Calendar Sync');
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Webhook Event Object:
+
+// {
+//   action: 'appointment.scheduled',
+//   id: '1068514360',
+//   calendarID: '7521036',
+//   appointmentTypeID: '38654330'
+// }
+
+// action: either scheduled rescheduled canceled changed depending on the action that initiated the webhook call
+// id: the ID for the appointment, get the details through the get appointment API call
+// calendarID: the ID of the calendar for the appointment.
+// appointmentTypeID: the ID of the type of the appointment.
