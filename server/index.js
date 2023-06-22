@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const { format } = require('date-fns');
 const PORT = process.env.PORT || 3000;
 
 // helpers
@@ -8,17 +9,19 @@ const apiHelpers = require('./helpers/apiHelpers');
 const webhookHelpers = require('./helpers/webhookHelpers');
 
 // middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // application/json
+app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
-// routes
+// route: webhook event
 app.post('/notification', (req, res) => {
-  console.log('Webhook Event:', req.body);
+  const timestamp = format(new Date(), 'MM/dd/yyyy @ hh:mma');
+  console.log(`Webhook Event ${timestamp}`, req.body);
   res.status(200).send('ok');
 });
 
+// routes: webhook API
 app.get('/webhook', (req, res) => {
-  webhookHelpers.listAllActiveWebhooks((err, response) => {
+  webhookHelpers.listActiveWebhooks((err, response) => {
     if (err) {
       const { status_code, message } = err.response.data;
       res.status(status_code).end({ message });
@@ -44,7 +47,7 @@ app.post('/webhook', (req, res) => {
 });
 
 app.delete('/webhook/:id', (req, res) => {
-  const { id } = req.body; // subscription ID
+  const { id } = req.query; // subscription ID
 
   if (!id) return res.status(400).json({ message: 'ID required' });
 
@@ -53,13 +56,14 @@ app.delete('/webhook/:id', (req, res) => {
       const { status_code, message } = err.response.data;
       res.status(status_code).json({ message });
     } else {
-      res.status(200).json({ message: `Subscription with id ${id} deleted` });
+      res.status(200).json({ message: `A subscription with the id '${id}' deleted` });
     }
   })
 });
 
+// routes: scheduling API
 app.get('/appointments', (req, res) => {
-  apiHelpers.getAllAppointments((err, response) => {
+  apiHelpers.listAppointments(req.query, (err, response) => {
     if (err) {
       const { status_code, message } = err.response.data;
       res.status(status_code).json({ message });
@@ -70,11 +74,11 @@ app.get('/appointments', (req, res) => {
 });
 
 app.get('/appointments/:id', (req, res) => {
-  const { id } = req.body;
+  const { id } = req.query;
 
   if (!id) return res.status(400).json({ message: 'ID required' });
 
-  apiHelpers.getAppointmentById(id, (err, response) => {
+  apiHelpers.listAppointmentById(id, (err, response) => {
     if (err) {
       const { status_code, message } = err.response.data;
       res.status(status_code).json({ message });
@@ -97,31 +101,51 @@ app.get('/appointments/:id', (req, res) => {
 //   })
 // });
 
+app.get('/appointment-types', (req, res) => {
+  apiHelpers.listAppointmentTypes(req.query, (err, response) => {
+    if (err) {
+      const { status_code, message } = err.response.data;
+      res.send(status_code).json({ message });
+    } else {
+      res.status(200).json(response.data);
+    }
+  });
+});
+
+app.get('/calendars', (req, res) => {
+  apiHelpers.listCalendars((err, response) => {
+    if (err) {
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
+    } else {
+      res.status(200).json(response.data);
+    }
+  })
+});
+
+app.get('/forms', (req, res) => {
+  apiHelpers.listForms((err, response) => {
+    if (err) {
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
+    } else {
+      res.status(200).json(response.data);
+    }
+  })
+});
+
+// route: home
 app.get('/', (req, res) => {
   res.send('Calendar Sync');
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-// Webhook Event Object:
-
-// {
-//   action: 'appointment.scheduled',
-//   id: '1068514360',
-//   calendarID: '7521036',
-//   appointmentTypeID: '38654330'
-// }
-
-// action: either scheduled rescheduled canceled changed depending on the action that initiated the webhook call
-// id: the ID for the appointment, get the details through the get appointment API call
-// calendarID: the ID of the calendar for the appointment.
-// appointmentTypeID: the ID of the type of the appointment.
-
 // FIXME:
-// update subscriptions to new ngrok public ip address
-// :id should be retrieved from req.params, not req.body.
+// [v] update subscriptions to new ngrok public ip address
+// [v] :id should be retrieved from req.query when making GET/DELETE request.
 
 // TODO:
-// use GET /appointments to make API call to OpenDental
-// create OpenDental helpers
-// integrate OpenDental into POST /notification. use 'switch & cases'
+// [ ] use GET /appointments to make API call to OpenDental
+// [ ] create OpenDental helpers
+// [ ] integrate OpenDental into POST /notification. use 'switch & cases'

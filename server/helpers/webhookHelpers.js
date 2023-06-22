@@ -1,7 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
 
-let listAllActiveWebhooks = (callback) => {
+let listActiveWebhooks = (callback) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
@@ -18,11 +18,7 @@ let createNewWebhook = (event, target, callback) => {
   const options = {
     method: 'POST',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: {
-      // accept: 'application/json',
-      // 'content-type': 'application/json',
-      authorization: process.env.AUTHORIZATION
-    },
+    headers: { authorization: process.env.AUTHORIZATION },
     data: { event, target }
   };
 
@@ -46,7 +42,7 @@ let deleteWebhook = (id, callback) => {
 };
 
 module.exports = {
-  listAllActiveWebhooks,
+  listActiveWebhooks,
   createNewWebhook,
   deleteWebhook
 };
