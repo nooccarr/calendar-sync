@@ -8,7 +8,7 @@ let listAppointments = (queryParams, callback) => {
     params: queryParams,
     headers: {
       accept: 'application/json',
-      authorization: process.env.AUTHORIZATION
+      authorization: process.env.ACUITY_AUTH
     }
   };
 
@@ -22,7 +22,7 @@ let listAppointmentById = (id, callback) => {
   const options = {
     method: 'GET',
     url: `https://acuityscheduling.com/api/v1/appointments/${id}`,
-    headers: { authorization: process.env.AUTHORIZATION }
+    headers: { authorization: process.env.ACUITY_AUTH }
   };
 
   axios
@@ -31,37 +31,13 @@ let listAppointmentById = (id, callback) => {
     .catch(error => callback(error));
 };
 
-// let createNewAppointment = (callback) => {
-//   const options = {
-//     method: 'POST',
-//     url: 'https://acuityscheduling.com/api/v1/appointments',
-//     headers: {
-//       // accept: 'application/json',
-//       // 'content-type': 'application/json',
-//       authorization: process.env.AUTHORIZATION
-//     },
-//     data: {
-//       appointmentTypeID: 1,
-//       datetime: '2023-08-01T10:00',
-//       firstName: 'Test',
-//       lastName: 'Ing',
-//       email: 'd2axasap@gmail.com'
-//     }
-//   };
-
-//   axios
-//     .request(options)
-//     .then(response => callback(null, response))
-//     .catch(error => callback(error));
-// };
-
 let listAppointmentTypes = (queryParams, callback) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/appointment-types',
     headers: {
       accept: 'application/json',
-      authorization: process.env.AUTHORIZATION
+      authorization: process.env.ACUITY_AUTH
     },
     params: queryParams
   };
@@ -78,7 +54,7 @@ let listCalendars = (callback) => {
     url: 'https://acuityscheduling.com/api/v1/calendars',
     headers: {
       accept: 'application/json',
-      authorization: process.env.AUTHORIZATION
+      authorization: process.env.ACUITY_AUTH
     }
   };
 
@@ -94,7 +70,7 @@ let listForms = (callback) => {
     url: 'https://acuityscheduling.com/api/v1/forms',
     headers: {
       accept: 'application/json',
-      authorization: process.env.AUTHORIZATION
+      authorization: process.env.ACUITY_AUTH
     }
   };
 
@@ -107,7 +83,6 @@ let listForms = (callback) => {
 module.exports = {
   listAppointments,
   listAppointmentById,
-  // createNewAppointment,
   listAppointmentTypes,
   listCalendars,
   listForms

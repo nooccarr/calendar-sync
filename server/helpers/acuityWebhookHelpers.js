@@ -5,7 +5,7 @@ let listActiveWebhooks = (callback) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: { authorization: process.env.AUTHORIZATION }
+    headers: { authorization: process.env.ACUITY_AUTH }
   };
 
   axios
@@ -18,7 +18,7 @@ let createNewWebhook = (event, target, callback) => {
   const options = {
     method: 'POST',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: { authorization: process.env.AUTHORIZATION },
+    headers: { authorization: process.env.ACUITY_AUTH },
     data: { event, target }
   };
 
@@ -32,7 +32,7 @@ let deleteWebhook = (id, callback) => {
   const options = {
     method: 'DELETE',
     url: `https://acuityscheduling.com/api/v1/webhooks/${id}`,
-    headers: { authorization: process.env.AUTHORIZATION }
+    headers: { authorization: process.env.ACUITY_AUTH }
   };
 
   axios
