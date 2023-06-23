@@ -5,7 +5,7 @@ const listPatients = (queryParams, callback) => {
   const options = {
     method: 'GET',
     url: 'https://api.opendental.com/api/v1/patients',
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     params: queryParams
   };
 
@@ -19,7 +19,7 @@ const listAppointments = (queryParams, callback) => {
   const options = {
     method: 'GET',
     url: 'https://api.opendental.com/api/v1/appointments',
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     params: queryParams
   };
 
@@ -33,7 +33,7 @@ const createNewPatient = (body, callback) => {
   const options = {
     method: 'POST',
     url: 'https://api.opendental.com/api/v1/patients',
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     body
   };
 
@@ -47,7 +47,7 @@ const createNewAppointment = (body, callback) => {
   const options = {
     method: 'POST',
     url: 'https://api.opendental.com/api/v1/appointments',
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     body
   };
 
@@ -61,7 +61,7 @@ const updateAppointment = (id, body, callback) => {
   const options = {
     method: 'PUT',
     url: `https://api.opendental.com/api/v1/appointments/${id}`,
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     body
   };
 
@@ -75,7 +75,7 @@ const breakAppointment = (id, body, callback) => {
   const options = {
     method: 'PUT',
     url: `https://api.opendental.com/api/v1/appointments/${id}/break`,
-    headers: { authorization: process.env.OPENDENTAL_AUTH },
+    headers: { authorization: process.env.OPENDENTAL_URI },
     body
   };
 

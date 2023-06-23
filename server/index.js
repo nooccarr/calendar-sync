@@ -1,5 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
+const compression = require('compression');
 const { format } = require('date-fns');
 const PORT = process.env.PORT || 3000;
 
@@ -9,6 +11,7 @@ const acuityWebhookHelpers = require('./helpers/acuityWebhookHelpers');
 const openDentalApiHelpers = require('./helpers/openDentalApiHelpers');
 
 // middleware
+app.use(compression());
 app.use(express.json()); // application/json
 app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
@@ -168,6 +171,9 @@ app.post('/opendental/appointments', (req, res) => {
 
 app.put('/opendental/appointments/:AptNum', (req, res) => {
   const { id } = req.query;
+
+  if (!id) return res.status(400).json({ message: 'Appointment number required' });
+
   openDentalApiHelpers.updateAppointment(id, req.body, (req, res) => {
     if (err) {
       const { status_code, message } = err.response.data;
@@ -180,6 +186,9 @@ app.put('/opendental/appointments/:AptNum', (req, res) => {
 
 app.put('/opendental/appointments/:AptNum/Break', (req, res) => {
   const { id } = req.query;
+
+  if (!id) return res.status(400).json({ message: 'Appointment number required' });
+
   openDentalApiHelpers.breakAppointment(id, req.body, (req, res) => {
     if (err) {
       const { status_code, message } = err.response.data;

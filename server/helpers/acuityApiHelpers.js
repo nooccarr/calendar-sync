@@ -8,7 +8,7 @@ let listAppointments = (queryParams, callback) => {
     params: queryParams,
     headers: {
       accept: 'application/json',
-      authorization: process.env.ACUITY_AUTH
+      authorization: process.env.ACUITY_URI
     }
   };
 
@@ -22,7 +22,7 @@ let listAppointmentById = (id, callback) => {
   const options = {
     method: 'GET',
     url: `https://acuityscheduling.com/api/v1/appointments/${id}`,
-    headers: { authorization: process.env.ACUITY_AUTH }
+    headers: { authorization: process.env.ACUITY_URI }
   };
 
   axios
@@ -37,7 +37,7 @@ let listAppointmentTypes = (queryParams, callback) => {
     url: 'https://acuityscheduling.com/api/v1/appointment-types',
     headers: {
       accept: 'application/json',
-      authorization: process.env.ACUITY_AUTH
+      authorization: process.env.ACUITY_URI
     },
     params: queryParams
   };
@@ -54,7 +54,7 @@ let listCalendars = (callback) => {
     url: 'https://acuityscheduling.com/api/v1/calendars',
     headers: {
       accept: 'application/json',
-      authorization: process.env.ACUITY_AUTH
+      authorization: process.env.ACUITY_URI
     }
   };
 
@@ -70,7 +70,7 @@ let listForms = (callback) => {
     url: 'https://acuityscheduling.com/api/v1/forms',
     headers: {
       accept: 'application/json',
-      authorization: process.env.ACUITY_AUTH
+      authorization: process.env.ACUITY_URI
     }
   };
 
