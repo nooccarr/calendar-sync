@@ -16,52 +16,60 @@ app.use(express.json()); // application/json
 app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
 // route: webhook event
-app.post('/notification', (req, res) => {
+app.post('/notification', async (req, res) => {
   const timestamp = format(new Date(), 'MM/dd/yyyy @ hh:mma');
   console.log(`Webhook Event ${timestamp}`, req.body);
-  res.status(200).send('ok');
+
+  try {
+    // event handler goes here
+
+    res.sendStatus(200);
+  } catch (err) {
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
 // routes: Acuity Webhook API
-app.get('/acuity/webhook', (req, res) => {
-  acuityWebhookHelpers.listActiveWebhooks((err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).end({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.get('/acuity/webhook', async (req, res) => {
+  try {
+    const response = await acuityWebhookHelpers.listActiveWebhooks();
+
+    res.json(response.data);
+  } catch (err) {
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.post('/acuity/webhook', (req, res) => {
+app.post('/acuity/webhook', async (req, res) => {
   const { event, target } = req.body; // target: webhook endpoint
 
   if (!event || !target) return res.status(400).json({ message: 'Event and target are required' });
 
-  acuityWebhookHelpers.createNewWebhook(event, target, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  });
+  try {
+    const response = await acuityWebhookHelpers.createNewWebhook(event, target);
+
+    res.status(201).json(response.data);
+  } catch (err) {
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.delete('/acuity/webhook/:id', (req, res) => {
+app.delete('/acuity/webhook/:id', async (req, res) => {
   const { id } = req.query; // subscription ID
 
   if (!id) return res.status(400).json({ message: 'ID required' });
 
-  acuityWebhookHelpers.deleteWebhook(id, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json({ message: `A subscription with the id '${id}' deleted` });
-    }
-  })
+  try {
+    const response = await acuityWebhookHelpers.deleteWebhook(id);
+
+    res.json({ message: `A subscription with the id '${id}' deleted` });
+  } catch (err) {
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
 // routes: Acuity Scheduling API
@@ -215,3 +223,5 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // [v] create OpenDental helpers
 // [v] create OpenDental routes
 // [ ] integrate OpenDental into POST /notification. use 'switch & cases'
+// [ ] implement async await on all routes
+// [ ] starter node file (delete all subscriptions. Then add subscriptions to new public URL)
