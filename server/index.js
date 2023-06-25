@@ -37,6 +37,7 @@ app.get('/acuity/webhook', async (req, res) => {
 
     res.json(response.data);
   } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
   }
@@ -52,6 +53,7 @@ app.post('/acuity/webhook', async (req, res) => {
 
     res.status(201).json(response.data);
   } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
   }
@@ -67,92 +69,101 @@ app.delete('/acuity/webhook/:id', async (req, res) => {
 
     res.json({ message: `A subscription with the id '${id}' deleted` });
   } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
   }
 });
 
 // routes: Acuity Scheduling API
-app.get('/acuity/appointments', (req, res) => {
-  acuityApiHelpers.listAppointments(req.query, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.get('/acuity/appointments', async (req, res) => {
+  try {
+    const response = await acuityApiHelpers.listAppointments(req.query);
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.get('/acuity/appointments/:id', (req, res) => {
+app.get('/acuity/appointments/:id', async (req, res) => {
   const { id } = req.query;
 
   if (!id) return res.status(400).json({ message: 'ID required' });
 
-  acuityApiHelpers.listAppointmentById(id, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  });
+  try {
+    const response = await acuityApiHelpers.listAppointmentById(id);
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.get('/acuity/appointment-types', (req, res) => {
-  acuityApiHelpers.listAppointmentTypes(req.query, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.send(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  });
+app.get('/acuity/appointment-types', async (req, res) => {
+  try {
+    const response = await acuityApiHelpers.listAppointmentTypes(req.query);
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.get('/acuity/calendars', (req, res) => {
-  acuityApiHelpers.listCalendars((err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.get('/acuity/calendars', async (req, res) => {
+  try {
+    const response = await acuityApiHelpers.listCalendars();
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
-app.get('/acuity/forms', (req, res) => {
-  acuityApiHelpers.listForms((err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.get('/acuity/forms', async (req, res) => {
+  try {
+    const response = await acuityApiHelpers.listForms();
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
 });
 
 // routes: Open Dental API
-app.get('/opendental/patients', (req, res) => {
-  openDentalApiHelpers.listPatients(req.query, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  });
+app.get('/opendental/patients', async (req, res) => {
+  try {
+    const response = await openDentalApiHelpers.listPatients(req.query);
+
+    res.json(response.data);
+  } catch (err) {
+    console.log(err);
+    if (!err.response) return res.json({ error: err.message });
+    const { status, data } = err.response;
+    res.status(status).json({ message: data });
+  }
 });
 
-app.get('/opendental/appointments', (req, res) => {
-  openDentalApiHelpers.listAppointments(req.query, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.get('/opendental/appointments', async (req, res) => {
+  try {
+    const response = await openDentalApiHelpers.listAppointments(req.query);
+
+    res.json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status, data } = err.response;
+    res.status(status).json({ message: data });
+  }
 });
 
 app.post('/opendental/patients', (req, res) => {

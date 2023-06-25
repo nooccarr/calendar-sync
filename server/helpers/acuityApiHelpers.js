@@ -1,83 +1,68 @@
 require('dotenv').config();
 const axios = require('axios');
 
-let listAppointments = (queryParams, callback) => {
+let listAppointments = (queryParams) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/appointments',
     params: queryParams,
     headers: {
-      accept: 'application/json',
-      authorization: process.env.ACUITY_URI
+      Accept: 'application/json',
+      Authorization: process.env.ACUITY_URI
     }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
-let listAppointmentById = (id, callback) => {
+let listAppointmentById = (id) => {
   const options = {
     method: 'GET',
     url: `https://acuityscheduling.com/api/v1/appointments/${id}`,
-    headers: { authorization: process.env.ACUITY_URI }
+    headers: { Authorization: process.env.ACUITY_URI }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
-let listAppointmentTypes = (queryParams, callback) => {
+let listAppointmentTypes = (queryParams) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/appointment-types',
     headers: {
-      accept: 'application/json',
-      authorization: process.env.ACUITY_URI
+      Accept: 'application/json',
+      Authorization: process.env.ACUITY_URI
     },
     params: queryParams
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
-let listCalendars = (callback) => {
+let listCalendars = () => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/calendars',
     headers: {
-      accept: 'application/json',
-      authorization: process.env.ACUITY_URI
+      Accept: 'application/json',
+      Authorization: process.env.ACUITY_URI
     }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
-let listForms = (callback) => {
+let listForms = () => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/forms',
     headers: {
-      accept: 'application/json',
-      authorization: process.env.ACUITY_URI
+      Accept: 'application/json',
+      Authorization: process.env.ACUITY_URI
     }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 }
 
 module.exports = {

@@ -5,7 +5,7 @@ let listActiveWebhooks = () => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: { authorization: process.env.ACUITY_URI }
+    headers: { Authorization: process.env.ACUITY_URI }
   };
 
   return axios.request(options);
@@ -15,7 +15,7 @@ let createNewWebhook = (event, target) => {
   const options = {
     method: 'POST',
     url: 'https://acuityscheduling.com/api/v1/webhooks',
-    headers: { authorization: process.env.ACUITY_URI },
+    headers: { Authorization: process.env.ACUITY_URI },
     data: { event, target }
   };
 
@@ -26,7 +26,7 @@ let deleteWebhook = (id) => {
   const options = {
     method: 'DELETE',
     url: `https://acuityscheduling.com/api/v1/webhooks/${id}`,
-    headers: { authorization: process.env.ACUITY_URI }
+    headers: { Authorization: process.env.ACUITY_URI }
   };
 
   return axios.request(options);
