@@ -2,7 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const compression = require('compression');
+const axios = require('axios');
 const { format } = require('date-fns');
+const EVENTS_LIST = require('./config/events_list');
 const PORT = process.env.PORT || 3000;
 
 // helpers
@@ -20,11 +22,99 @@ app.post('/notification', async (req, res) => {
   const timestamp = format(new Date(), 'MM/dd/yyyy @ hh:mma');
   console.log(`Webhook Event ${timestamp}`, req.body);
 
-  try {
-    // event handler goes here
+  const { action, id, appointmentTypeId } = req.body;
 
-    res.sendStatus(200);
+  try {
+    const appointment = await acuityApiHelpers.listAppointmentById({ id, pastFormAnswers: 'false' });
+    const { firstName, lastName, phone, email, datetime, type } = appointment.data; // integrate DOB in Acuity
+    // event handler goes here
+    switch (action) {
+      case 'appointment.scheduled':
+        // get a list of patients
+        const patients = await openDentalApiHelpers.listPatients({
+          // LName: lastName,
+          // FName: firstName,
+          // Birthdate: '' // integrate DOB in Acuity
+          LName: 'Thisis',
+          FName: 'Test',
+          Birthdate: ''
+        });
+
+        const length = patients.data.length;
+
+        // TODO:
+        // // if patient is not found, create a new patient
+        // if (length === 0) {
+        //   const newPatient = await openDentalApiHelpers.createNewPatient({
+        //     LName: lastName,
+        //     FName: firstName,
+        //     Birthdate: '', // integrate DOB in Acuity
+        //     WirelessPhone: phone,
+        //     Email: email
+        //   });
+        // }
+
+        // create a new appointment
+
+        // store id, appointment number, and patient number to the DB
+
+
+        // edge case: if more than 1 patient is found
+
+        console.log(patients.data, length);
+
+        break;
+      case 'appointment.rescheduled':
+
+
+        break;
+      case 'appointment.canceled':
+
+
+        break;
+      // case 'appointment.changed':
+      //   console.log(action + ' received');
+
+      //   break;
+      default:
+        console.log('Invalid webhook event');
+    }
+
+    res.json({ message: 'event received' });
   } catch (err) {
+    console.log(err);
+    if (!err.response) return res.json({ message: err.message });
+    const { status_code, message } = err.response.data;
+    res.status(status_code).json({ message });
+  }
+});
+
+// route: reset webhooks (new URL)
+app.post('/subscription', async (req, res) => {
+  const { url } = req.body;
+
+  if (!url) return res.status(400).json({ message: 'URL required' });
+
+  try {
+    const webhooks = await acuityWebhookHelpers.listActiveWebhooks();
+
+    const ids = webhooks.data.map(({ id }) => id);
+
+    const deleteWebhooks = await axios.all(
+      ids.map(
+        async (id) => await acuityWebhookHelpers.deleteWebhook(id)
+      )
+    );
+
+    const addWebhooks = await axios.all(
+      EVENTS_LIST.map(
+        async (event) => await acuityWebhookHelpers.createNewWebhook(event, `${url}/notification`)
+      )
+    );
+
+    res.json({ message: 'Target updated for all subscription events' });
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
   }
@@ -94,8 +184,8 @@ app.get('/acuity/appointments/:id', async (req, res) => {
   if (!id) return res.status(400).json({ message: 'ID required' });
 
   try {
-    const response = await acuityApiHelpers.listAppointmentById(id);
-
+    const response = await acuityApiHelpers.listAppointmentById(req.query);
+    // console.log(response.config);
     res.json(response.data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
@@ -166,18 +256,24 @@ app.get('/opendental/appointments', async (req, res) => {
   }
 });
 
-app.post('/opendental/patients', (req, res) => {
-  openDentalApiHelpers.createNewPatient(req.body, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.post('/opendental/patients', async (req, res) => {
+  const { LName, FName } = req.body;
+
+  if (!LName || !FName) return res.status(400).json({ message: 'Last name and first name are required' });
+
+  try {
+    const response = await openDentalApiHelpers.createNewPatient(req.body);
+
+    res.status(201).json(response.data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    console.log(err.response.config);
+    const { status, data } = err.response;
+    res.status(status).json({ message: data });
+  }
 });
 
-app.post('/opendental/appointments', (req, res) => {
+message: app.post('/opendental/appointments', (req, res) => {
   openDentalApiHelpers.createNewAppointment(req.body, (err, response) => {
     if (err) {
       const { status_code, message } = err.response.data;
@@ -233,6 +329,7 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // [v] use GET /appointments to make API call to OpenDental
 // [v] create OpenDental helpers
 // [v] create OpenDental routes
+// [v] implement async await on all routes
+// [v] create a POST route (delete all subscriptions. Then add all subscriptions under new public URL)
+// [ ] use MVC framework pattern
 // [ ] integrate OpenDental into POST /notification. use 'switch & cases'
-// [ ] implement async await on all routes
-// [ ] starter node file (delete all subscriptions. Then add subscriptions to new public URL)

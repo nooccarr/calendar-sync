@@ -1,11 +1,11 @@
 require('dotenv').config();
 const axios = require('axios');
 
-let listAppointments = (queryParams) => {
+let listAppointments = (params) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/appointments',
-    params: queryParams,
+    params,
     headers: {
       Accept: 'application/json',
       Authorization: process.env.ACUITY_URI
@@ -15,25 +15,29 @@ let listAppointments = (queryParams) => {
   return axios.request(options);
 };
 
-let listAppointmentById = (id) => {
+let listAppointmentById = (params) => {
   const options = {
     method: 'GET',
-    url: `https://acuityscheduling.com/api/v1/appointments/${id}`,
-    headers: { Authorization: process.env.ACUITY_URI }
+    url: `https://acuityscheduling.com/api/v1/appointments/${params.id}`,
+    params,
+    headers: {
+      Accept: 'application/json',
+      Authorization: process.env.ACUITY_URI
+    }
   };
 
   return axios.request(options);
 };
 
-let listAppointmentTypes = (queryParams) => {
+let listAppointmentTypes = (params) => {
   const options = {
     method: 'GET',
     url: 'https://acuityscheduling.com/api/v1/appointment-types',
+    params,
     headers: {
       Accept: 'application/json',
       Authorization: process.env.ACUITY_URI
-    },
-    params: queryParams
+    }
   };
 
   return axios.request(options);
