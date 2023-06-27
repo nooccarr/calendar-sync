@@ -123,9 +123,9 @@ app.post('/subscription', async (req, res) => {
 // routes: Acuity Webhook API
 app.get('/acuity/webhook', async (req, res) => {
   try {
-    const response = await acuityWebhookHelpers.listActiveWebhooks();
+    const { data } = await acuityWebhookHelpers.listActiveWebhooks();
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -139,9 +139,9 @@ app.post('/acuity/webhook', async (req, res) => {
   if (!event || !target) return res.status(400).json({ message: 'Event and target are required' });
 
   try {
-    const response = await acuityWebhookHelpers.createNewWebhook(event, target);
+    const { data } = await acuityWebhookHelpers.createNewWebhook(event, target);
 
-    res.status(201).json(response.data);
+    res.status(201).json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -168,9 +168,9 @@ app.delete('/acuity/webhook/:id', async (req, res) => {
 // routes: Acuity Scheduling API
 app.get('/acuity/appointments', async (req, res) => {
   try {
-    const response = await acuityApiHelpers.listAppointments(req.query);
+    const { data } = await acuityApiHelpers.listAppointments(req.query);
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -184,9 +184,9 @@ app.get('/acuity/appointments/:id', async (req, res) => {
   if (!id) return res.status(400).json({ message: 'ID required' });
 
   try {
-    const response = await acuityApiHelpers.listAppointmentById(req.query);
-    // console.log(response.config);
-    res.json(response.data);
+    const { data } = await acuityApiHelpers.listAppointmentById(req.query);
+
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -196,9 +196,9 @@ app.get('/acuity/appointments/:id', async (req, res) => {
 
 app.get('/acuity/appointment-types', async (req, res) => {
   try {
-    const response = await acuityApiHelpers.listAppointmentTypes(req.query);
+    const { data } = await acuityApiHelpers.listAppointmentTypes(req.query);
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -208,9 +208,9 @@ app.get('/acuity/appointment-types', async (req, res) => {
 
 app.get('/acuity/calendars', async (req, res) => {
   try {
-    const response = await acuityApiHelpers.listCalendars();
+    const { data } = await acuityApiHelpers.listCalendars();
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -220,9 +220,9 @@ app.get('/acuity/calendars', async (req, res) => {
 
 app.get('/acuity/forms', async (req, res) => {
   try {
-    const response = await acuityApiHelpers.listForms();
+    const { data } = await acuityApiHelpers.listForms();
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
@@ -233,11 +233,10 @@ app.get('/acuity/forms', async (req, res) => {
 // routes: Open Dental API
 app.get('/opendental/patients', async (req, res) => {
   try {
-    const response = await openDentalApiHelpers.listPatients(req.query);
+    const { data } = await openDentalApiHelpers.listPatients(req.query);
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
-    console.log(err);
     if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
     res.status(status).json({ message: data });
@@ -246,9 +245,9 @@ app.get('/opendental/patients', async (req, res) => {
 
 app.get('/opendental/appointments', async (req, res) => {
   try {
-    const response = await openDentalApiHelpers.listAppointments(req.query);
+    const { data } = await openDentalApiHelpers.listAppointments(req.query);
 
-    res.json(response.data);
+    res.json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
@@ -257,14 +256,16 @@ app.get('/opendental/appointments', async (req, res) => {
 });
 
 app.post('/opendental/patients', async (req, res) => {
-  const { LName, FName } = req.body;
+  const { LName, FName, Birthdate } = req.body;
 
   if (!LName || !FName) return res.status(400).json({ message: 'Last name and first name are required' });
 
-  try {
-    const response = await openDentalApiHelpers.createNewPatient(req.body);
+  if (!Birthdate) req.body.Birthdate = '0001-01-01';
 
-    res.status(201).json(response.data);
+  try {
+    const { data } = await openDentalApiHelpers.createNewPatient(req.body);
+
+    res.status(201).json(data);
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     console.log(err.response.config);
@@ -273,15 +274,25 @@ app.post('/opendental/patients', async (req, res) => {
   }
 });
 
-message: app.post('/opendental/appointments', (req, res) => {
-  openDentalApiHelpers.createNewAppointment(req.body, (err, response) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
-    } else {
-      res.status(200).json(response.data);
-    }
-  })
+app.post('/opendental/appointments', async (req, res) => {
+  const { PatNum, AptDateTime } = req.body;
+
+  if (!PatNum || !AptDateTime) {
+    return res.status(400).json({ message: 'Patient number and appointment date & time required' });
+  }
+  // AppointmentTypeNum: 2 ~ 5
+
+  req.body.Op = 1;
+
+  try {
+    const { data } = await openDentalApiHelpers.createNewAppointment(req.body);
+
+    res.status(201).json(data);
+  } catch (err) {
+    if (!err.response) return res.json({ message: err.message });
+    const { status, data } = err.response;
+    res.status(status).json({ message: data });
+  }
 });
 
 app.put('/opendental/appointments/:AptNum', (req, res) => {

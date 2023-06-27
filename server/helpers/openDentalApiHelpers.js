@@ -29,7 +29,7 @@ const listAppointments = (params) => {
   return axios.request(options);
 };
 
-const createNewPatient = (body) => {
+const createNewPatient = (data) => {
   const options = {
     method: 'POST',
     url: 'https://api.opendental.com/api/v1/patients',
@@ -37,24 +37,24 @@ const createNewPatient = (body) => {
       Authorization: process.env.OPENDENTAL_URI,
       'Content-Type': 'application/json'
     },
-    body
+    data
   };
 
   return axios.request(options);
 };
 
-const createNewAppointment = (body, callback) => {
+const createNewAppointment = (data) => {
   const options = {
     method: 'POST',
     url: 'https://api.opendental.com/api/v1/appointments',
-    headers: { Authorization: process.env.OPENDENTAL_URI },
-    body
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    },
+    data
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
 const updateAppointment = (id, body, callback) => {
