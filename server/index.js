@@ -4,14 +4,24 @@ const app = express();
 const compression = require('compression');
 const axios = require('axios');
 const { format, parseISO } = require('date-fns');
+const mongoose = require('mongoose');
+const connectDB = require('./config/dbConn');
+const PORT = process.env.PORT || 3000;
+
+// config
 const APPOINTMENT_TYPE_LIST = require('./config/appointment_type_list');
 const EVENTS_LIST = require('./config/events_list');
-const PORT = process.env.PORT || 3000;
+
+// model
+const Appointment = require('./model/Appointment');
 
 // helpers
 const acuityApiHelpers = require('./helpers/acuityApiHelpers');
 const acuityWebhookHelpers = require('./helpers/acuityWebhookHelpers');
 const openDentalApiHelpers = require('./helpers/openDentalApiHelpers');
+
+// connect to MongoDB
+connectDB();
 
 // middleware
 app.use(compression());
@@ -65,15 +75,22 @@ app.post('/notification', async (req, res) => {
           PatNum, AptDateTime, AppointmentTypeNum, Op: 1
         });
 
-        // TODO: store id, appointment number, and patient number to the DB
+        // store id, appointment number, and patient number to the DB
         const { AptNum } = newAppointment.data;
 
-        // edge case: if more than 1 patient is found
+        const newAppointmentDB = await Appointment.create({
+          aptId: id,
+          patNum: PatNum,
+          aptNum: AptNum
+        });
+
+        res.status(201).json(newAppointmentDB);
 
         // console.log(patients.data, length);
         // console.log(PatNum);
         // console.log(newAppointment.data);
 
+        // FIXME: edge case: if more than 1 patient is found
 
         break;
       case 'appointment.rescheduled':
@@ -92,10 +109,10 @@ app.post('/notification', async (req, res) => {
         console.log('Invalid webhook event');
     }
 
-    res.json({ message: 'event received' });
+    // res.json({ message: 'event received' });
   } catch (err) {
-    console.log(err);
-    if (!err.response) return res.json({ message: err.message });
+    // console.log(err);
+    if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
   }
@@ -300,7 +317,7 @@ app.post('/opendental/appointments', async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
-    if (!err.response) return res.json({ message: err.message });
+    if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
     res.status(status).json({ message: data });
   }
@@ -322,7 +339,7 @@ app.put('/opendental/appointments/:id', async (req, res) => {
       const { status, data } = err.response;
       res.status(status).json({ message: data });
     } else {
-      res.json({ message: err.message });
+      res.json({ error: err.message });
     }
   }
 });
@@ -343,7 +360,7 @@ app.put('/opendental/appointments/:id/break', async (req, res) => {
       const { status, data } = err.response;
       res.status(status).json({ message: data });
     } else {
-      res.json({ message: err.message });
+      res.json({ error: err.message });
     }
   }
 });
@@ -367,12 +384,60 @@ app.put('/opendental/patients/:id', async (req, res) => {
   }
 });
 
+// routes: Appointments API
+app.get('/appointments', async (req, res) => {
+  const appointments = await Appointment.find();
+  if (!appointments?.length) return res.status(204).json({ message: 'No appointments found' });
+  res.json(appointments);
+});
+
+app.post('/appointments', async (req, res) => {
+  const { id, PatNum, AptNum } = req.body;
+
+  if (!id || !PatNum || !AptNum) {
+    return res.status(400).json({ message: 'Id, patient number, and appointment number required' });
+  }
+
+  try {
+    const result = await Appointment.create({
+      aptId: id,
+      patNum: PatNum,
+      aptNum: AptNum
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.delete('/appointments', async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) return res.status(400).json({ message: 'Appointment ID required' });
+
+  try {
+    const appointment = await Appointment.findOne({ aptId: id }).exec();
+
+    if (!appointment) return res.status(400).json({ message: `No appointment matches ID ${id}` });
+
+    const result = await Appointment.deleteOne({ aptId: id });
+
+    res.json(result);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 // route: home
 app.get('/', (req, res) => {
   res.send('Calendar Sync');
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+mongoose.connection.once('open', () => {
+  console.log('Connected to MongoDB');
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+})
 
 // FIXME:
 // [v] update subscriptions to new ngrok public ip address
