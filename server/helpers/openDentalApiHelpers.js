@@ -57,33 +57,47 @@ const createNewAppointment = (data) => {
   return axios.request(options);
 };
 
-const updateAppointment = (id, body, callback) => {
+const updateAppointment = (id, data) => {
   const options = {
     method: 'PUT',
     url: `https://api.opendental.com/api/v1/appointments/${id}`,
-    headers: { Authorization: process.env.OPENDENTAL_URI },
-    body
+    data,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
 
-const breakAppointment = (id, body, callback) => {
+const breakAppointment = (id, data) => {
   const options = {
     method: 'PUT',
-    url: `https://api.opendental.com/api/v1/appointments/${id}/break`,
-    headers: { Authorization: process.env.OPENDENTAL_URI },
-    body
+    url: `https://api.opendental.com/api/v1/appointments/${id}/Break`,
+    data,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
   };
 
-  axios
-    .request(options)
-    .then(response => callback(null, response))
-    .catch(error => callback(error));
+  return axios.request(options);
 };
+
+const updatePatient = (id, data) => {
+  const options = {
+    method: 'PUT',
+    url: `https://api.opendental.com/api/v1/patients/${id}`,
+    data,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
+  };
+
+  return axios.request(options);
+}
 
 module.exports = {
   listPatients,
@@ -91,5 +105,6 @@ module.exports = {
   createNewPatient,
   createNewAppointment,
   updateAppointment,
-  breakAppointment
+  breakAppointment,
+  updatePatient
 };

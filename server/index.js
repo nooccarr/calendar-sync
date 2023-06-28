@@ -275,12 +275,11 @@ app.post('/opendental/patients', async (req, res) => {
 });
 
 app.post('/opendental/appointments', async (req, res) => {
-  const { PatNum, AptDateTime } = req.body;
+  const { PatNum, AptDateTime } = req.body; // AppointmentTypeNum: 2 ~ 5
 
   if (!PatNum || !AptDateTime) {
     return res.status(400).json({ message: 'Patient number and appointment date & time required' });
   }
-  // AppointmentTypeNum: 2 ~ 5
 
   req.body.Op = 1;
 
@@ -295,34 +294,65 @@ app.post('/opendental/appointments', async (req, res) => {
   }
 });
 
-app.put('/opendental/appointments/:AptNum', (req, res) => {
-  const { id } = req.query;
+app.put('/opendental/appointments/:id', async (req, res) => {
+  const { AptNum } = req.query;
+  const { AptDateTime } = req.body;
 
-  if (!id) return res.status(400).json({ message: 'Appointment number required' });
+  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
+  if (!AptDateTime) return res.status(400).json({ message: 'Appointment date & time required' });
 
-  openDentalApiHelpers.updateAppointment(id, req.body, (req, res) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
+  try {
+    const { data } = await openDentalApiHelpers.updateAppointment(AptNum, req.body);
+
+    res.json(data); // AptDateTime(ASC)
+  } catch (err) {
+    if (err.response) {
+      const { status, data } = err.response;
+      res.status(status).json({ message: data });
     } else {
-      res.status(200).json(response.data);
+      res.json({ message: err.message });
     }
-  });
+  }
 });
 
-app.put('/opendental/appointments/:AptNum/Break', (req, res) => {
-  const { id } = req.query;
+app.put('/opendental/appointments/:id/break', async (req, res) => {
+  const { AptNum } = req.query;
+  const { sendToUnscheduledList } = req.body;
 
-  if (!id) return res.status(400).json({ message: 'Appointment number required' });
+  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
+  if (!sendToUnscheduledList) return res.status(400).json({ message: 'Send to unscheduled list required' });
 
-  openDentalApiHelpers.breakAppointment(id, req.body, (req, res) => {
-    if (err) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
+  try {
+    const { data } = await openDentalApiHelpers.breakAppointment(AptNum, req.body);
+
+    res.json(data);
+  } catch (err) {
+    if (err.response) {
+      const { status, data } = err.response;
+      res.status(status).json({ message: data });
     } else {
-      res.status(200).json(response.data);
+      res.json({ message: err.message });
     }
-  });
+  }
+});
+
+app.put('/opendental/patients/:id', async (req, res) => {
+  const { PatNum } = req.query;
+
+  if (!PatNum) return res.status(400).json({ message: 'Patient number required' });
+
+  try {
+    const { data } = await openDentalApiHelpers.updatePatient(PatNum, req.body);
+
+    res.json(data);
+  } catch (err) {
+    if (err.response) {
+      const { status, data } = err.response;
+      res.status(status).json({ message: data });
+    } else {
+      res.json({ error: err.message });
+    }
+  }
 });
 
 // route: home
