@@ -3,7 +3,8 @@ const express = require('express');
 const app = express();
 const compression = require('compression');
 const axios = require('axios');
-const { format } = require('date-fns');
+const { format, parseISO } = require('date-fns');
+const APPOINTMENT_TYPE_LIST = require('./config/appointment_type_list');
 const EVENTS_LIST = require('./config/events_list');
 const PORT = process.env.PORT || 3000;
 
@@ -22,46 +23,57 @@ app.post('/notification', async (req, res) => {
   const timestamp = format(new Date(), 'MM/dd/yyyy @ hh:mma');
   console.log(`Webhook Event ${timestamp}`, req.body);
 
-  const { action, id, appointmentTypeId } = req.body;
+  const { action, id, appointmentTypeID } = req.body;
 
   try {
     const appointment = await acuityApiHelpers.listAppointmentById({ id, pastFormAnswers: 'false' });
-    const { firstName, lastName, phone, email, datetime, type } = appointment.data; // integrate DOB in Acuity
+
+    let { firstName, lastName, birthDate, phone, email, datetime } = appointment.data; // integrate DOB in Acuity
+
+    birthDate = birthDate || '0001-01-01';
+
     // event handler goes here
     switch (action) {
       case 'appointment.scheduled':
+
         // get a list of patients
         const patients = await openDentalApiHelpers.listPatients({
-          // LName: lastName,
-          // FName: firstName,
-          // Birthdate: '' // integrate DOB in Acuity
-          LName: 'Thisis',
-          FName: 'Test',
-          Birthdate: ''
+          LName: lastName, FName: firstName, Birthdate: birthDate // integrate DOB in Acuity
         });
 
         const length = patients.data.length;
 
-        // TODO:
-        // // if patient is not found, create a new patient
-        // if (length === 0) {
-        //   const newPatient = await openDentalApiHelpers.createNewPatient({
-        //     LName: lastName,
-        //     FName: firstName,
-        //     Birthdate: '', // integrate DOB in Acuity
-        //     WirelessPhone: phone,
-        //     Email: email
-        //   });
-        // }
+        let PatNum;
+
+        // if patient is not found, create a new patient
+        if (length === 0) {
+          const newPatient = await openDentalApiHelpers.createNewPatient({
+            LName: lastName, FName: firstName, Birthdate: birthDate, WirelessPhone: phone, Email: email
+          });
+
+          PatNum = newPatient.data.PatNum;
+        }
 
         // create a new appointment
+        PatNum = PatNum || patients.data[0].PatNum; // if length === 1
 
-        // store id, appointment number, and patient number to the DB
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
+        const AppointmentTypeNum = APPOINTMENT_TYPE_LIST[appointmentTypeID];
+
+        const newAppointment = await openDentalApiHelpers.createNewAppointment({
+          PatNum, AptDateTime, AppointmentTypeNum, Op: 1
+        });
+
+        // TODO: store id, appointment number, and patient number to the DB
+        const { AptNum } = newAppointment.data;
 
         // edge case: if more than 1 patient is found
 
-        console.log(patients.data, length);
+        // console.log(patients.data, length);
+        // console.log(PatNum);
+        // console.log(newAppointment.data);
+
 
         break;
       case 'appointment.rescheduled':
@@ -265,7 +277,7 @@ app.post('/opendental/patients', async (req, res) => {
   try {
     const { data } = await openDentalApiHelpers.createNewPatient(req.body);
 
-    res.status(201).json(data);
+    res.status(201).json(data); // automatically ignores duplicates
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     console.log(err.response.config);
@@ -302,9 +314,9 @@ app.put('/opendental/appointments/:id', async (req, res) => {
   if (!AptDateTime) return res.status(400).json({ message: 'Appointment date & time required' });
 
   try {
-    const { data } = await openDentalApiHelpers.updateAppointment(AptNum, req.body);
+    const response = await openDentalApiHelpers.updateAppointment(AptNum, req.body);
 
-    res.json(data); // AptDateTime(ASC)
+    res.json({ message: `Updated an appointment with the id '${id}'` }); // AptDateTime(ASC)
   } catch (err) {
     if (err.response) {
       const { status, data } = err.response;
@@ -323,9 +335,9 @@ app.put('/opendental/appointments/:id/break', async (req, res) => {
   if (!sendToUnscheduledList) return res.status(400).json({ message: 'Send to unscheduled list required' });
 
   try {
-    const { data } = await openDentalApiHelpers.breakAppointment(AptNum, req.body);
+    const response = await openDentalApiHelpers.breakAppointment(AptNum, req.body);
 
-    res.json(data);
+    res.json({ message: `Broke an appointment with the id '${id}'` });
   } catch (err) {
     if (err.response) {
       const { status, data } = err.response;
