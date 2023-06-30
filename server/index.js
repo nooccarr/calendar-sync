@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 const compression = require('compression');
 const axios = require('axios');
-const { format, parseISO } = require('date-fns');
+const { format, parseISO, startOfWeek, differenceInDays, subDays } = require('date-fns');
 const mongoose = require('mongoose');
 const connectDB = require('./config/dbConn');
 const PORT = process.env.PORT || 3000;
@@ -36,6 +36,7 @@ app.post('/notification', async (req, res) => {
   const { action, id, appointmentTypeID } = req.body;
 
   try {
+    // get an appointment with matching ID
     const appointment = await acuityApiHelpers.listAppointmentById({ id, pastFormAnswers: 'false' });
 
     let { firstName, lastName, birthDate, phone, email, datetime } = appointment.data; // integrate DOB in Acuity
@@ -44,19 +45,20 @@ app.post('/notification', async (req, res) => {
 
     // event handler goes here
     switch (action) {
-      case 'appointment.scheduled':
-
+      case 'appointment.scheduled': {
         // get a list of patients
         const patients = await openDentalApiHelpers.listPatients({
-          LName: lastName, FName: firstName, Birthdate: birthDate // integrate DOB in Acuity
+          LName: lastName.slice(0, 2),
+          FName: firstName.slice(0, 2),
+          Birthdate: birthDate // FIXME: integrate DOB in Acuity
         });
 
-        const length = patients.data.length;
+        const patientCount = patients.data.length;
 
         let PatNum;
 
-        // if patient is not found, create a new patient
-        if (length === 0) {
+        // if no patient or many patients found, create a new patient
+        if (patientCount !== 1) {
           const newPatient = await openDentalApiHelpers.createNewPatient({
             LName: lastName, FName: firstName, Birthdate: birthDate, WirelessPhone: phone, Email: email
           });
@@ -65,11 +67,13 @@ app.post('/notification', async (req, res) => {
         }
 
         // create a new appointment
-        PatNum = PatNum || patients.data[0].PatNum; // if length === 1
+        PatNum = PatNum || patients.data[0].PatNum; // if patientCount === 1
 
         const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-        const AppointmentTypeNum = APPOINTMENT_TYPE_LIST[appointmentTypeID];
+        const AppointmentTypeNum = patientCount < 2 ?
+          APPOINTMENT_TYPE_LIST[appointmentTypeID] :
+          APPOINTMENT_TYPE_LIST['manyEntriesFound'];
 
         const newAppointment = await openDentalApiHelpers.createNewAppointment({
           PatNum, AptDateTime, AppointmentTypeNum, Op: 1
@@ -86,32 +90,57 @@ app.post('/notification', async (req, res) => {
 
         res.status(201).json(newAppointmentDB);
 
-        // console.log(patients.data, length);
-        // console.log(PatNum);
-        // console.log(newAppointment.data);
+        break;
+      }
+      case 'appointment.rescheduled': {
+        // query the DB
+        const { aptNum } = await Appointment.findOne({ aptId: id });
 
-        // FIXME: edge case: if more than 1 patient is found
+        // update appointment
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
+
+        const response = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+
+        res.json({ message: `Updated an appointment with ID ${id}` });
 
         break;
-      case 'appointment.rescheduled':
+      }
+      case 'appointment.canceled': {
+        // query the DB
+        const { aptNum } = await Appointment.findOne({ aptId: id });
 
+        // update an appointment
+        const dateTime = parseISO(datetime);
+        const weekStartDate = startOfWeek(dateTime);
+        const difference = differenceInDays(dateTime, weekStartDate);
+        const newDateTime = subDays(dateTime, difference);
+        const AptDateTime = format(newDateTime, 'yyyy-MM-dd HH:mm:ss');
+
+        const updateAppointment = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+
+        // break an appointment
+        const breakAppointment = await openDentalApiHelpers.breakAppointment(aptNum, { sendToUnscheduledList: false });
+
+        res.json({ message: `Deleted an appointment with ID ${id}` });
 
         break;
-      case 'appointment.canceled':
+      }
+      case 'appointment.changed': {
+        // query the DB
+        const appointment = await Appointment.findOne({ aptId: id });
 
+        // update a patient
+
+        res.json({ message: `Updated a patient with ID ${id}` });
 
         break;
-      // case 'appointment.changed':
-      //   console.log(action + ' received');
-
-      //   break;
-      default:
-        console.log('Invalid webhook event');
+      }
+      default: {
+        res.json({ message: 'Invalid webhook event' });
+      }
     }
 
-    // res.json({ message: 'event received' });
   } catch (err) {
-    // console.log(err);
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
@@ -333,7 +362,7 @@ app.put('/opendental/appointments/:id', async (req, res) => {
   try {
     const response = await openDentalApiHelpers.updateAppointment(AptNum, req.body);
 
-    res.json({ message: `Updated an appointment with the id '${id}'` }); // AptDateTime(ASC)
+    res.json({ message: `Updated an appointment with the id '${AptNum}'` }); // AptDateTime(ASC)
   } catch (err) {
     if (err.response) {
       const { status, data } = err.response;
