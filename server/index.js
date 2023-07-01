@@ -127,9 +127,16 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.changed': {
         // query the DB
-        const appointment = await Appointment.findOne({ aptId: id });
+        const { patNum } = await Appointment.findOne({ aptId: id });
 
         // update a patient
+        const response = await openDentalApiHelpers.updatePatient(patNum, {
+          LName: lastName,
+          FName: firstName,
+          Birthdate: birthDate,
+          WirelessPhone: phone,
+          Email: email
+        });
 
         res.json({ message: `Updated a patient with ID ${id}` });
 
@@ -142,8 +149,8 @@ app.post('/notification', async (req, res) => {
 
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
-    const { status_code, message } = err.response.data;
-    res.status(status_code).json({ message });
+    const { status, data } = err.response;
+    res.status(status).json({ data });
   }
 });
 
