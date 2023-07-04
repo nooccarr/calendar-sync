@@ -48,9 +48,11 @@ app.post('/notification', async (req, res) => {
       case 'appointment.scheduled': {
         // get a list of patients
         const patients = await openDentalApiHelpers.listPatients({
-          LName: lastName.slice(0, 2),
-          FName: firstName.slice(0, 2),
-          Birthdate: birthDate // FIXME: integrate DOB in Acuity
+          // LName: lastName.slice(0, 2), NOTE: if an incorrect patient is pulled, appointment.changed will overwrite patient information
+          // FName: firstName.slice(0, 2),
+          LName: lastName,
+          FName: firstName,
+          Birthdate: birthDate // FIXME: integrate DOB in Acuity.
         });
 
         const patientCount = patients.data.length;
@@ -60,7 +62,11 @@ app.post('/notification', async (req, res) => {
         // if no patient or many patients found, create a new patient
         if (patientCount !== 1) {
           const newPatient = await openDentalApiHelpers.createNewPatient({
-            LName: lastName, FName: firstName, Birthdate: birthDate, WirelessPhone: phone, Email: email
+            LName: lastName,
+            FName: firstName,
+            Birthdate: birthDate,
+            WirelessPhone: phone,
+            Email: email
           });
 
           PatNum = newPatient.data.PatNum;
@@ -94,9 +100,13 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.rescheduled': {
         // query the DB
-        const { aptNum } = await Appointment.findOne({ aptId: id });
+        const appointment = await Appointment.findOne({ aptId: id });
+
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
         // update appointment
+        const { aptNum } = appointment;
+
         const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
         const response = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
@@ -107,9 +117,13 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.canceled': {
         // query the DB
-        const { aptNum } = await Appointment.findOne({ aptId: id });
+        const appointment = await Appointment.findOne({ aptId: id });
+
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
         // update an appointment
+        const { aptNum } = appointment;
+
         const dateTime = parseISO(datetime);
         const weekStartDate = startOfWeek(dateTime);
         const difference = differenceInDays(dateTime, weekStartDate);
@@ -127,18 +141,41 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.changed': {
         // query the DB
-        const { patNum } = await Appointment.findOne({ aptId: id });
+        const appointment = await Appointment.findOne({ aptId: id });
+
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+
+        // get a patient
+        const { patNum } = appointment;
+
+        const patient = await openDentalApiHelpers.listPatient(patNum);
 
         // update a patient
-        const response = await openDentalApiHelpers.updatePatient(patNum, {
-          LName: lastName,
-          FName: firstName,
-          Birthdate: birthDate,
-          WirelessPhone: phone,
-          Email: email
-        });
+        const { LName, FName, Birthdate, WirelessPhone, Email } = patient.data;
 
-        res.json({ message: `Updated a patient with ID ${id}` });
+        phone = phone.length === 10 ?
+          '(' + phone.slice(0, 3) + ')' + phone.slice(3, 6) + '-' + phone.slice(6) :
+          phone.length === 11 ?
+            phone[0] + '(' + phone.slice(1, 4) + ')' + phone.slice(4, 7) + '-' + phone.slice(7) :
+            '';
+
+        console.log('AC:', lastName, firstName, birthDate, phone, email);
+        console.log('OD:', LName, FName, Birthdate, WirelessPhone, Email);
+
+        if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
+          const updatePatient = await openDentalApiHelpers.updatePatient(patNum, {
+            LName: lastName || LName,
+            FName: firstName || FName,
+            Birthdate: birthDate !== '0001-01-01' ? birthDate : Birthdate,
+            WirelessPhone: phone || WirelessPhone,
+            Email: email || Email
+          });
+          console.log('appointment.change: Updated');
+          res.json({ message: `Updated a patient with ID ${id}` });
+        } else {
+          console.log('appointment.change: No change');
+          res.json({ message: 'Nothing here to change' });
+        }
 
         break;
       }
@@ -150,7 +187,7 @@ app.post('/notification', async (req, res) => {
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
-    res.status(status).json({ data });
+    res.status(status).json({ message: data });
   }
 });
 
@@ -182,6 +219,40 @@ app.post('/subscription', async (req, res) => {
     if (!err.response) return res.json({ error: err.message });
     const { status_code, message } = err.response.data;
     res.status(status_code).json({ message });
+  }
+});
+
+// route: populate database
+app.post('/populate', async (req, res) => {
+
+  try {
+    // get all appointments
+    const appointments = await acuityApiHelpers.listAppointments({ max: 1000 });
+
+    appointments.data.map(async ({ id, lastName, firstName, phone, email }) => {
+      const patients = await openDentalApiHelpers.listPatients({ LName: lastName, FName: firstName });
+      if (patients.data.length === 0) {
+        console.log('MATCHING NONE:', id, lastName, firstName, phone, email);
+      } else if (patients.data.length > 1) {
+        console.log('MATCHING MANY:', id, lastName, firstName, phone, email);
+        patients.data.map(({ PatNum, LName, FName, WirelessPhone, Email, Birthdate }) => {
+          console.log(PatNum, LName, FName, WirelessPhone, Email, Birthdate);
+        });
+      } else {
+        console.log('MATCHING     :', id, lastName, firstName, phone, email);
+        // GET /opendental/appointments
+        // I: PatNum, datetime, O: AptNum, PatNum
+      }
+    })
+
+    res.json(appointments.data);
+  } catch (err) {
+    if (err.response) {
+      const { status_code, message } = err.response.data;
+      res.status(status_code).json({ message });
+    } else {
+      res.json({ error: err.message });
+    }
   }
 });
 
@@ -299,6 +370,22 @@ app.get('/acuity/forms', async (req, res) => {
 app.get('/opendental/patients', async (req, res) => {
   try {
     const { data } = await openDentalApiHelpers.listPatients(req.query);
+
+    res.json(data);
+  } catch (err) {
+    if (!err.response) return res.json({ error: err.message });
+    const { status, data } = err.response;
+    res.status(status).json({ message: data });
+  }
+});
+
+app.get('/opendental/patients/:id', async (req, res) => {
+  const { PatNum } = req.query;
+
+  if (!PatNum) return res.status(400).json({ message: 'Patient number required' })
+
+  try {
+    const { data } = await openDentalApiHelpers.listPatient(PatNum);
 
     res.json(data);
   } catch (err) {

@@ -1,6 +1,19 @@
 require('dotenv').config();
 const axios = require('axios');
 
+const listPatient = (PatNum) => {
+  const options = {
+    method: 'GET',
+    url: `https://api.opendental.com/api/v1/patients/${PatNum}`,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
+  };
+
+  return axios.request(options);
+};
+
 const listPatients = (params) => {
   const options = {
     method: 'GET',
@@ -100,6 +113,7 @@ const updatePatient = (id, data) => {
 }
 
 module.exports = {
+  listPatient,
   listPatients,
   listAppointments,
   createNewPatient,
