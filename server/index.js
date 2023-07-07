@@ -229,21 +229,42 @@ app.post('/populate', async (req, res) => {
     // get all appointments
     const appointments = await acuityApiHelpers.listAppointments({ max: 1000 });
 
-    appointments.data.map(async ({ id, lastName, firstName, phone, email }) => {
+    appointments.data.map(async ({ id, lastName, firstName, phone, email, datetime }) => {
       const patients = await openDentalApiHelpers.listPatients({ LName: lastName, FName: firstName, Phone: phone });
+
       if (patients.data.length === 0) {
-        console.log('MATCHING NONE:', id, lastName, firstName, phone, email);
+        console.log('NO PATIENT FOUND:', id, lastName, firstName, phone, email);
       } else if (patients.data.length > 1) {
-        console.log('MATCHING MANY:', id, lastName, firstName, phone, email);
+        console.log('MANY PATIENTS FOUND:', id, lastName, firstName, phone, email);
         patients.data.map(({ PatNum, LName, FName, WirelessPhone, Email, Birthdate }) => {
           console.log(PatNum, LName, FName, WirelessPhone, Email, Birthdate);
         });
       } else {
-        console.log('MATCHING:', id, lastName, firstName, phone, email);
+        const { PatNum } = patients.data[0];
+
+        const date = format(parseISO(datetime), 'yyyy-MM-dd');
+
         // GET /opendental/appointments
         // I: PatNum, datetime, O: AptNum, PatNum
+        const appointments = await openDentalApiHelpers.listAppointments({ PatNum, date });
+
+        // console.log('MATCHING:', id, lastName, firstName, phone, email);
+        if (appointments.data.length === 0) console.log('NO APPOINTMENT FOUND');
+        else if (appointments.data.length > 1) console.log('MANY APPOINTMENTS FOUND');
+        else {
+          const { AptNum } = appointments.data[0];
+          // console.log(id, PatNum, AptNum);
+
+          const newAppointmentDB = await Appointment.create({
+            aptId: id,
+            patNum: PatNum,
+            aptNum: AptNum
+          });
+          console.log(newAppointmentDB);
+          // res.status(201).json(newAppointmentDB);
+        }
       }
-    })
+    });
 
     res.json(appointments.data);
   } catch (err) {
