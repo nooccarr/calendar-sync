@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const compression = require('compression');
+const { logger } = require('./middleware/logger');
+const errorHandler = require('./middleware/errorHandler');
 const axios = require('axios');
 const { format, parseISO, startOfWeek, differenceInDays, subDays } = require('date-fns');
 const mongoose = require('mongoose');
@@ -25,12 +27,17 @@ connectDB();
 
 // middleware
 app.use(compression());
+
+// middleware: custom
+app.use(logger);
+
+// middleware: built-in
 app.use(express.json()); // application/json
 app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
 // route: webhook event
 app.post('/notification', async (req, res) => {
-  const timestamp = format(new Date(), 'MM/dd/yyyy @ hh:mma');
+  const timestamp = format(new Date(), 'yyyy-MM-dd HH:mma');
   console.log(`Webhook Event ${timestamp}`, req.body);
 
   const { action, id, appointmentTypeID } = req.body;
@@ -578,6 +585,18 @@ app.get('/', (req, res) => {
   res.send('Calendar Sync');
 });
 
+app.all('*', (req, res) => {
+  res.status(404);
+  if (req.accepts('json')) {
+    res.json({ error: '404 Not Found' });
+  } else {
+    res.type('txt').send('404 Not Found');
+  }
+});
+
+// middleware: custom
+app.use(errorHandler);
+
 mongoose.connection.once('open', () => {
   console.log('Connected to MongoDB');
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
@@ -594,4 +613,4 @@ mongoose.connection.once('open', () => {
 // [v] implement async await on all routes
 // [v] create a POST route (delete all subscriptions. Then add all subscriptions under new public URL)
 // [ ] use MVC framework pattern
-// [ ] integrate OpenDental into POST /notification. use 'switch & cases'
+// [v] integrate OpenDental into POST /notification. use 'switch & cases'
