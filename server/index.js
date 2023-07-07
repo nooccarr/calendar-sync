@@ -230,7 +230,7 @@ app.post('/populate', async (req, res) => {
     const appointments = await acuityApiHelpers.listAppointments({ max: 1000 });
 
     appointments.data.map(async ({ id, lastName, firstName, phone, email }) => {
-      const patients = await openDentalApiHelpers.listPatients({ LName: lastName, FName: firstName });
+      const patients = await openDentalApiHelpers.listPatients({ LName: lastName, FName: firstName, Phone: phone });
       if (patients.data.length === 0) {
         console.log('MATCHING NONE:', id, lastName, firstName, phone, email);
       } else if (patients.data.length > 1) {
@@ -239,7 +239,7 @@ app.post('/populate', async (req, res) => {
           console.log(PatNum, LName, FName, WirelessPhone, Email, Birthdate);
         });
       } else {
-        console.log('MATCHING     :', id, lastName, firstName, phone, email);
+        console.log('MATCHING:', id, lastName, firstName, phone, email);
         // GET /opendental/appointments
         // I: PatNum, datetime, O: AptNum, PatNum
       }
@@ -248,8 +248,8 @@ app.post('/populate', async (req, res) => {
     res.json(appointments.data);
   } catch (err) {
     if (err.response) {
-      const { status_code, message } = err.response.data;
-      res.status(status_code).json({ message });
+      const { status, data } = err.response;
+      res.status(status).json({ message: data });
     } else {
       res.json({ error: err.message });
     }
