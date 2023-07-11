@@ -5,17 +5,19 @@ const compression = require('compression');
 const { logger } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const axios = require('axios');
-const { format, parseISO, startOfWeek, differenceInDays, subDays } = require('date-fns');
+const { format, parseISO } = require('date-fns');
 const mongoose = require('mongoose');
 const connectDB = require('./config/dbConn');
 const PORT = process.env.PORT || 3000;
 
 // config
-const APPOINTMENT_TYPE_LIST = require('./config/appointment_type_list');
-const EVENTS_LIST = require('./config/events_list');
+const { ACUITY_EVENTS, APPOINTMENT_TYPES, OPERATORY } = require('./config/events');
 
 // model
 const Appointment = require('./model/Appointment');
+
+// utility helpers
+const { formatDateOfBirth, formatPhoneNumber, toStartOfWeek } = require('./utils/index').Acuity;
 
 // helpers
 const acuityApiHelpers = require('./helpers/acuityApiHelpers');
@@ -37,8 +39,8 @@ app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
 // route: webhook event
 app.post('/notification', async (req, res) => {
-  const timestamp = format(new Date(), 'yyyy-MM-dd HH:mma');
-  console.log(`Webhook Event ${timestamp}`, req.body);
+  // const timestamp = format(new Date(), 'yyyy-MM-dd HH:mma');
+  // console.log(`Webhook Event ${timestamp}`, req.body);
 
   const { action, id, appointmentTypeID } = req.body;
 
@@ -46,153 +48,147 @@ app.post('/notification', async (req, res) => {
     // get an appointment with matching ID
     const appointment = await acuityApiHelpers.listAppointmentById({ id, pastFormAnswers: 'false' });
 
-    let { firstName, lastName, phone, email, datetime, forms } = appointment.data; // integrate DOB in Acuity
+    let { firstName, lastName, phone, email, datetime, forms } = appointment.data;
 
-    const dobForm = forms.find(({ id }) => id === 2419902);
-    const dobValues = dobForm.values.map(({ value }) => value);
-    const birthDate = dobValues.every(value => value !== '') ? dobValues.join('-') : '0001-01-01';
+    const birthDate = formatDateOfBirth(forms);
 
-    // // event handler goes here
-    // switch (action) {
-    //   case 'appointment.scheduled': {
-    //     // get a list of patients
-    //     const patients = await openDentalApiHelpers.listPatients({
-    //       // LName: lastName.slice(0, 2), NOTE: if an incorrect patient is pulled, appointment.changed will overwrite patient information
-    //       // FName: firstName.slice(0, 2),
-    //       LName: lastName,
-    //       FName: firstName,
-    //       Birthdate: birthDate
-    //     });
+    // event handler goes here
+    switch (action) {
+      case 'appointment.scheduled': {
+        // get a list of patients
+        const patients = await openDentalApiHelpers.listPatients({
+          // LName: lastName.slice(0, 2), TODO: if an incorrect patient is pulled, appointment.changed will overwrite patient information
+          // FName: firstName.slice(0, 2),
+          LName: lastName,
+          FName: firstName,
+          Birthdate: birthDate,
+          Phone: phone
+        });
 
-    //     const patientCount = patients.data.length;
+        const patientCount = patients.data.length;
 
-    //     let PatNum;
+        let PatNum;
 
-    //     // if no patient or many patients found, create a new patient
-    //     if (patientCount !== 1) {
-    //       const newPatient = await openDentalApiHelpers.createNewPatient({
-    //         LName: lastName,
-    //         FName: firstName,
-    //         Birthdate: birthDate,
-    //         WirelessPhone: phone,
-    //         Email: email
-    //       });
+        // if no patient or many patients found, create a new patient
+        if (patientCount !== 1) {
+          const newPatient = await openDentalApiHelpers.createNewPatient({
+            LName: lastName,
+            FName: firstName,
+            Birthdate: birthDate,
+            WirelessPhone: phone,
+            Email: email
+          });
 
-    //       PatNum = newPatient.data.PatNum;
-    //     }
+          PatNum = newPatient.data.PatNum;
+        }
 
-    //     // create a new appointment
-    //     PatNum = PatNum || patients.data[0].PatNum; // if patientCount === 1
+        // create a new appointment
+        PatNum = PatNum || patients.data[0].PatNum; // if patientCount === 1
 
-    //     const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-    //     const AppointmentTypeNum = patientCount < 2 ?
-    //       APPOINTMENT_TYPE_LIST[appointmentTypeID] :
-    //       APPOINTMENT_TYPE_LIST['manyEntriesFound'];
+        const AppointmentTypeNum = patientCount < 2 ?
+          APPOINTMENT_TYPES[appointmentTypeID] :
+          APPOINTMENT_TYPES['manyEntriesFound'];
 
-    //     const newAppointment = await openDentalApiHelpers.createNewAppointment({
-    //       PatNum, AptDateTime, AppointmentTypeNum, Op: 1
-    //     });
+        const newAppointment = await openDentalApiHelpers.createNewAppointment({
+          PatNum,
+          AptDateTime,
+          AppointmentTypeNum,
+          Op: OPERATORY['Op1']
+        });
 
-    //     // store id, appointment number, and patient number to the DB
-    //     const { AptNum } = newAppointment.data;
+        // store id, appointment number, and patient number to the DB
+        const { AptNum } = newAppointment.data;
 
-    //     const newAppointmentDB = await Appointment.create({
-    //       aptId: id,
-    //       patNum: PatNum,
-    //       aptNum: AptNum
-    //     });
+        const newAppointmentDB = await Appointment.create({
+          aptId: id,
+          patNum: PatNum,
+          aptNum: AptNum
+        });
 
-    //     res.status(201).json(newAppointmentDB);
+        res.status(201).json(newAppointmentDB);
 
-    //     break;
-    //   }
-    //   case 'appointment.rescheduled': {
-    //     // query the DB
-    //     const appointment = await Appointment.findOne({ aptId: id });
+        break;
+      }
+      case 'appointment.rescheduled': {
+        // query the DB
+        const appointment = await Appointment.findOne({ aptId: id });
 
-    //     if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-    //     // update appointment
-    //     const { aptNum } = appointment;
+        // update appointment
+        const { aptNum } = appointment;
 
-    //     const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-    //     const response = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+        const response = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
 
-    //     res.json({ message: `Updated an appointment with ID ${id}` });
+        res.json({ message: `Updated an appointment with ID ${id}` });
 
-    //     break;
-    //   }
-    //   case 'appointment.canceled': {
-    //     // query the DB
-    //     const appointment = await Appointment.findOne({ aptId: id });
+        break;
+      }
+      case 'appointment.canceled': {
+        // query the DB
+        const appointment = await Appointment.findOne({ aptId: id });
 
-    //     if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-    //     // update an appointment
-    //     const { aptNum } = appointment;
+        // update an appointment
+        const { aptNum } = appointment;
 
-    //     const dateTime = parseISO(datetime);
-    //     const weekStartDate = startOfWeek(dateTime);
-    //     const difference = differenceInDays(dateTime, weekStartDate);
-    //     const newDateTime = subDays(dateTime, difference);
-    //     const AptDateTime = format(newDateTime, 'yyyy-MM-dd HH:mm:ss');
+        const AptDateTime = toStartOfWeek(datetime);
 
-    //     const updateAppointment = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+        const updateAppointment = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
 
-    //     // break an appointment
-    //     const breakAppointment = await openDentalApiHelpers.breakAppointment(aptNum, { sendToUnscheduledList: false });
+        // break an appointment
+        const breakAppointment = await openDentalApiHelpers.breakAppointment(aptNum, { sendToUnscheduledList: false });
 
-    //     res.json({ message: `Deleted an appointment with ID ${id}` });
+        res.json({ message: `Deleted an appointment with ID ${id}` });
 
-    //     break;
-    //   }
-    //   case 'appointment.changed': {
-    //     // query the DB
-    //     const appointment = await Appointment.findOne({ aptId: id });
+        break;
+      }
+      case 'appointment.changed': {
+        // query the DB
+        const appointment = await Appointment.findOne({ aptId: id });
 
-    //     if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-    //     // get a patient
-    //     const { patNum } = appointment;
+        // get a patient
+        const { patNum } = appointment;
 
-    //     const patient = await openDentalApiHelpers.listPatient(patNum);
+        const patient = await openDentalApiHelpers.listPatient(patNum);
 
-    //     // update a patient
-    //     const { LName, FName, Birthdate, WirelessPhone, Email } = patient.data;
+        // update a patient
+        const { LName, FName, Birthdate, WirelessPhone, Email } = patient.data;
 
-    //     phone = phone.length === 10 ?
-    //       '(' + phone.slice(0, 3) + ')' + phone.slice(3, 6) + '-' + phone.slice(6) :
-    //       phone.length === 11 ?
-    //         phone[0] + '(' + phone.slice(1, 4) + ')' + phone.slice(4, 7) + '-' + phone.slice(7) :
-    //         '';
+        phone = formatPhoneNumber(phone);
 
-    //     console.log('AC:', lastName, firstName, birthDate, phone, email);
-    //     console.log('OD:', LName, FName, Birthdate, WirelessPhone, Email);
+        console.log('AS:', birthDate, phone, lastName, firstName, email);
+        console.log('OD:', Birthdate, WirelessPhone, LName, FName, Email);
 
-    //     if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
-    //       const updatePatient = await openDentalApiHelpers.updatePatient(patNum, {
-    //         LName: lastName || LName,
-    //         FName: firstName || FName,
-    //         Birthdate: birthDate !== '0001-01-01' ? birthDate : Birthdate,
-    //         WirelessPhone: phone || WirelessPhone,
-    //         Email: email || Email
-    //       });
-    //       console.log('appointment.change: Updated');
-    //       res.json({ message: `Updated a patient with ID ${id}` });
-    //     } else {
-    //       console.log('appointment.change: No change');
-    //       res.json({ message: 'Nothing here to change' });
-    //     }
+        if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
+          const updatePatient = await openDentalApiHelpers.updatePatient(patNum, {
+            LName: lastName || LName,
+            FName: firstName || FName,
+            Birthdate: birthDate !== '0001-01-01' ? birthDate : Birthdate,
+            WirelessPhone: phone || WirelessPhone,
+            Email: email || Email
+          });
+          console.log('appointment.change: Updated');
+          res.json({ message: `Updated a patient with ID ${id}` });
+        } else {
+          console.log('appointment.change: No change');
+          res.json({ message: 'Nothing here to change' });
+        }
 
-    //     break;
-    //   }
-    //   default: {
-    //     res.json({ message: 'Invalid webhook event' });
-    //   }
-    // }
-    res.json(birthDate);
+        break;
+      }
+      default: {
+        res.json({ message: 'Invalid webhook event' });
+      }
+    }
+
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
@@ -218,7 +214,7 @@ app.post('/subscription', async (req, res) => {
     );
 
     const addWebhooks = await axios.all(
-      EVENTS_LIST.map(
+      ACUITY_EVENTS.map(
         async (event) => await acuityWebhookHelpers.createNewWebhook(event, `${url}/notification`)
       )
     );
@@ -235,42 +231,52 @@ app.post('/subscription', async (req, res) => {
 app.post('/populate', async (req, res) => {
 
   try {
-    // get all appointments
+    // get all appointments (Acuity Scheduling)
     const appointments = await acuityApiHelpers.listAppointments({ max: 1000 });
 
-    appointments.data.map(async ({ id, lastName, firstName, phone, email, datetime }) => {
-      const patients = await openDentalApiHelpers.listPatients({ LName: lastName, FName: firstName, Phone: phone });
+    appointments.data.map(async ({ id, lastName, firstName, phone, datetime, forms }) => {
+
+      // get all patients (Open Dental)
+      const birthDate = formatDateOfBirth(forms);
+
+      const patients = await openDentalApiHelpers.listPatients({
+        LName: lastName,
+        FName: firstName,
+        Birthdate: birthDate,
+        Phone: phone
+      });
 
       if (patients.data.length === 0) {
-        console.log('NO PATIENT FOUND:', id, lastName, firstName, phone, email);
+        console.log('NO PATIENT FOUND:', id, birthDate, phone, lastName, firstName);
       } else if (patients.data.length > 1) {
-        console.log('MANY PATIENTS FOUND:', id, lastName, firstName, phone, email);
-        patients.data.map(({ PatNum, LName, FName, WirelessPhone, Email, Birthdate }) => {
-          console.log(PatNum, LName, FName, WirelessPhone, Email, Birthdate);
+        console.log('MANY PATIENTS FOUND:', id, birthDate, phone, lastName, firstName);
+        patients.data.map(({ PatNum, LName, FName, WirelessPhone, Birthdate }) => {
+          console.log(PatNum, Birthdate, WirelessPhone, LName, FName);
         });
       } else {
         const { PatNum } = patients.data[0];
 
         const date = format(parseISO(datetime), 'yyyy-MM-dd');
 
-        // GET /opendental/appointments
-        // I: PatNum, datetime, O: AptNum, PatNum
+        // get all appointments (Open Dental)
         const appointments = await openDentalApiHelpers.listAppointments({ PatNum, date });
 
-        // console.log('MATCHING:', id, lastName, firstName, phone, email);
-        if (appointments.data.length === 0) console.log('NO APPOINTMENT FOUND');
-        else if (appointments.data.length > 1) console.log('MANY APPOINTMENTS FOUND');
-        else {
+        console.log('MATCHING:', id, birthDate, phone, lastName, firstName);
+        if (appointments.data.length === 0) {
+          console.log('NO APPOINTMENT FOUND');
+        } else if (appointments.data.length > 1) {
+          console.log('MANY APPOINTMENTS FOUND');
+        } else {
           const { AptNum } = appointments.data[0];
           // console.log(id, PatNum, AptNum);
 
-          const newAppointmentDB = await Appointment.create({
-            aptId: id,
-            patNum: PatNum,
-            aptNum: AptNum
-          });
-          console.log(newAppointmentDB);
-          // res.status(201).json(newAppointmentDB);
+          // const newAppointmentDB = await Appointment.create({
+          //   aptId: id,
+          //   patNum: PatNum,
+          //   aptNum: AptNum
+          // });
+
+          // // console.log(newAppointmentDB);
         }
       }
     });
