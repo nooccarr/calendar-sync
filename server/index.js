@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const crypto = require('crypto');
 const compression = require('compression');
-const { logger } = require('./middleware/logger');
+const { logEvents, logger } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const axios = require('axios');
 const { format, parseISO } = require('date-fns');
@@ -33,16 +34,31 @@ app.use(compression());
 // middleware: custom
 app.use(logger);
 
-// middleware: built-in
-app.use(express.json()); // application/json
+// // middleware: built-in
+// app.use(express.json()); // application/json
 app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 
 // route: webhook event
 app.post('/notification', async (req, res) => {
-  // const timestamp = format(new Date(), 'yyyy-MM-dd HH:mma');
-  // console.log(`Webhook Event ${timestamp}`, req.body);
+
+  // // verify webhook request FIXME:
+  // // Get hash of message using shared secret:
+  // const hash = crypto.createHmac('sha256', process.env.ACUITY_API_KEY)
+  //   .update(JSON.stringify(req.body))
+  //   .digest('base64');
+
+  // // Compare hash to Acuity signature:
+  // if (hash !== req.header('X-Acuity-Signature')) {
+  //   console.log('This message was forged');
+  //   return res.status(403).json({ message: 'This message was forged!' });
+  // } else {
+  //   console.log('success');
+  //   return res.json({ message: 'success' });
+  // }
 
   const { action, id, appointmentTypeID } = req.body;
+
+  logEvents(`${action}\tid:${id}\taptTypeId:${appointmentTypeID}`, 'webhookLog.log');
 
   try {
     // get an appointment with matching ID
@@ -57,7 +73,7 @@ app.post('/notification', async (req, res) => {
       case 'appointment.scheduled': {
         // get a list of patients
         const patients = await openDentalApiHelpers.listPatients({
-          // LName: lastName.slice(0, 2), TODO: if an incorrect patient is pulled, appointment.changed will overwrite patient information
+          // LName: lastName.slice(0, 2), // NOTE: if an incorrect patient is pulled, appointment.changed will overwrite patient information
           // FName: firstName.slice(0, 2),
           LName: lastName,
           FName: firstName,
@@ -188,7 +204,6 @@ app.post('/notification', async (req, res) => {
         res.json({ message: 'Invalid webhook event' });
       }
     }
-
   } catch (err) {
     if (!err.response) return res.json({ error: err.message });
     const { status, data } = err.response;
@@ -240,6 +255,8 @@ app.post('/populate', async (req, res) => {
       const birthDate = formatDateOfBirth(forms);
 
       const patients = await openDentalApiHelpers.listPatients({
+        // LName: lastName.slice(0, 2),
+        // FName: firstName.slice(0, 2),
         LName: lastName,
         FName: firstName,
         Birthdate: birthDate,
@@ -267,21 +284,23 @@ app.post('/populate', async (req, res) => {
         } else if (appointments.data.length > 1) {
           console.log('MANY APPOINTMENTS FOUND');
         } else {
+
+          // store appointment in the database
           const { AptNum } = appointments.data[0];
-          // console.log(id, PatNum, AptNum);
 
-          // const newAppointmentDB = await Appointment.create({
-          //   aptId: id,
-          //   patNum: PatNum,
-          //   aptNum: AptNum
-          // });
-
-          // // console.log(newAppointmentDB);
+          const newAppointmentDB = await Appointment.create({
+            aptId: id,
+            patNum: PatNum,
+            aptNum: AptNum
+          }).catch(err => {
+            logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
+            console.error(err.stack);
+          });
         }
       }
     });
 
-    res.json(appointments.data);
+    res.json({ message: 'Appointments are populated in the database' });
   } catch (err) {
     if (err.response) {
       const { status, data } = err.response;
@@ -608,6 +627,11 @@ app.use(errorHandler);
 mongoose.connection.once('open', () => {
   console.log('Connected to MongoDB');
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+});
+
+mongoose.connection.on('error', err => {
+  logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
+  console.error(err.stack);
 })
 
 // FIXME:
@@ -620,5 +644,5 @@ mongoose.connection.once('open', () => {
 // [v] create OpenDental routes
 // [v] implement async await on all routes
 // [v] create a POST route (delete all subscriptions. Then add all subscriptions under new public URL)
-// [ ] use MVC framework pattern
 // [v] integrate OpenDental into POST /notification. use 'switch & cases'
+// [ ] use MVC framework pattern

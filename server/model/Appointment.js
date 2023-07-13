@@ -14,8 +14,7 @@ const appointmentSchema = new Schema(
     },
     aptNum: {
       type: Number,
-      required: true,
-      unique: true
+      required: true
     }
   },
   { timestamps: true }

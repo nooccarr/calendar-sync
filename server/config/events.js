@@ -3,7 +3,7 @@ module.exports = {
     // 'appointment.scheduled',
     // 'appointment.rescheduled',
     // 'appointment.canceled',
-    // 'appointment.changed'
+    'appointment.changed'
   ],
   APPOINTMENT_TYPES: {
     38654330: 2,
