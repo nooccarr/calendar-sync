@@ -4,27 +4,34 @@ exports.apiErrorHandler = (err, req, res) => {
   const data = err.response?.data;
 
   if (typeof data === 'string') {
-    logEvents(`${req.method} ${req.url} ${err.response.data}`, 'apiErrLog.log');
     return res.status(err.response.status).json({ Error: err.response.data });
-  }
-
-  if (typeof data === 'object') {
-    logEvents(`${req.method} ${req.url} ${JSON.stringify(err.response.data)}`, 'apiErrLog.log');
+  } else if (typeof data === 'object') {
     return res.status(err.response.status).json({ Error: err.response.data });
-  }
-
-  if (err.cause) {
-    logEvents(`${req.method} ${req.url} ${JSON.stringify(err.cause)}`, 'apiErrLog.log');
+  } else if (err.cause) {
     return res.status(502).json({ Error: err.cause });
+  } else {
+    return res.status(400).json({ Error: err.message });
   }
-
-  logEvents(`${req.method} ${req.url} ${err.message}`, 'apiErrLog.log');
-  return res.status(400).json({ Error: err.message });
 };
 
-// exports.openDentalErrorHandler = (err, req, res) => {
-//   logEvents(
-//     `${req.method}\t${req.url}\t${err.response.status}:\t${err.response.data.message}\t${req.headers.origin}`,
-//     'openDentalErrLog.log'
-//   );
-// };
+exports.apiErrorLogger = (err, req, res, isWebhook = false) => {
+  const data = err.response?.data;
+
+  let message = '';
+
+  if (typeof data === 'string') {
+    if (isWebhook) {
+      message = `${req.method} ${req.url} ${err.response.data} ${err.config.method.toUpperCase()} ${err.config.url}`;
+    } else {
+      message = `${req.method} ${req.url} ${err.response.data}`;
+    }
+  } else if (typeof data === 'object') {
+    message = `${req.method} ${req.url} ${JSON.stringify(err.response.data)}`;
+  } else if (err.cause) {
+    message = `${req.method} ${req.url} ${JSON.stringify(err.cause)}`;
+  } else {
+    message = `${req.method} ${req.url} ${err.message}`;
+  }
+
+  logEvents(message, 'apiErrLog.log');
+}

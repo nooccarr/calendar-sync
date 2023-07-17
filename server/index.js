@@ -19,7 +19,7 @@ const Appointment = require('./model/Appointment');
 
 // utility helpers
 const { formatDateOfBirth, formatPhoneNumber, toStartOfWeek } = require('./utils/index').Acuity;
-const { apiErrorHandler } = require('./utils/index').Error;
+const { apiErrorHandler, apiErrorLogger } = require('./utils/index').Error;
 
 // helpers
 const acuityApiHelpers = require('./helpers/acuityApiHelpers');
@@ -42,7 +42,7 @@ app.use(express.urlencoded({ extended: true })); // x-www-form-urlencoded
 // route: webhook event
 app.post('/notification', async (req, res) => {
 
-  // // verify webhook request FIXME:
+  // FIXME: verify webhook request
   // // Get hash of message using shared secret:
   // const hash = crypto.createHmac('sha256', process.env.ACUITY_API_KEY)
   //   .update(JSON.stringify(req.body))
@@ -102,7 +102,7 @@ app.post('/notification', async (req, res) => {
 
         const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-        const AppointmentTypeNum = patientCount < 2 ?
+        const AppointmentTypeNum = patientCount <= 1 ?
           APPOINTMENT_TYPES[appointmentTypeID] :
           APPOINTMENT_TYPES['manyEntriesFound'];
 
@@ -128,12 +128,12 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.rescheduled': {
         // query the DB
-        const appointment = await Appointment.findOne({ aptId: id });
+        const appointmentDB = await Appointment.findOne({ aptId: id });
 
-        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
         // update appointment
-        const { aptNum } = appointment;
+        const { aptNum } = appointmentDB;
 
         const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
@@ -145,12 +145,12 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.canceled': {
         // query the DB
-        const appointment = await Appointment.findOne({ aptId: id });
+        const appointmentDB = await Appointment.findOne({ aptId: id });
 
-        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
         // update an appointment
-        const { aptNum } = appointment;
+        const { aptNum } = appointmentDB;
 
         const AptDateTime = toStartOfWeek(datetime);
 
@@ -165,34 +165,36 @@ app.post('/notification', async (req, res) => {
       }
       case 'appointment.changed': {
         // query the DB
-        const appointment = await Appointment.findOne({ aptId: id });
+        const appointmentDB = await Appointment.findOne({ aptId: id });
 
-        if (!appointment) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-        // get a patient
-        const { aptNum, patNum } = appointment;
+        // get appointment
+        const { aptNum, patNum } = appointmentDB;
 
-        // TODO:  create Appointments GET (single) route -> /appointments/:id
-        //        if GET /appointments/aptNum exists, do GET /patients/patNum
+        const appointment = await openDentalApiHelpers.listAppointment(aptNum);
 
-        const patient = await openDentalApiHelpers.listPatient(patNum);
+        // get patient
+        if (appointment) {
+          const patient = await openDentalApiHelpers.listPatient(patNum);
 
-        // update a patient
-        const { LName, FName, Birthdate, WirelessPhone, Email } = patient.data;
+          // update patient
+          const { LName, FName, Birthdate, WirelessPhone, Email } = patient.data;
 
-        phone = formatPhoneNumber(phone);
+          phone = formatPhoneNumber(phone);
 
-        if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
-          const updatePatient = await openDentalApiHelpers.updatePatient(patNum, {
-            LName: lastName || LName,
-            FName: firstName || FName,
-            Birthdate: birthDate !== '0001-01-01' ? birthDate : Birthdate,
-            WirelessPhone: phone || WirelessPhone,
-            Email: email || Email
-          });
-          res.json({ message: `Updated a patient with ID ${id}` });
-        } else {
-          res.json({ message: 'Nothing here to change' });
+          if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
+            const updatePatient = await openDentalApiHelpers.updatePatient(patNum, {
+              LName: lastName || LName,
+              FName: firstName || FName,
+              Birthdate: birthDate !== '0001-01-01' ? birthDate : Birthdate,
+              WirelessPhone: phone || WirelessPhone,
+              Email: email || Email
+            });
+            res.json({ message: `Updated a patient with ID ${id}` });
+          } else {
+            res.json({ message: 'Nothing here to change' });
+          }
         }
 
         break;
@@ -202,6 +204,7 @@ app.post('/notification', async (req, res) => {
       }
     }
   } catch (err) {
+    apiErrorLogger(err, req, res, true);
     apiErrorHandler(err, req, res);
   }
 });
@@ -233,6 +236,7 @@ app.post('/subscription', async (req, res) => {
 
     res.json(subscribed);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -306,17 +310,17 @@ app.post('/populate', async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // // store appointment in the database
-              // const { AptNum } = appointments.data[0];
+              // store appointment in the database
+              const { AptNum } = appointments.data[0];
 
-              // const newAppointmentDB = await Appointment.create({
-              //   aptId: id,
-              //   patNum: PatNum,
-              //   aptNum: AptNum
-              // }).catch(err => {
-              //   logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
-              //   console.error(err.stack);
-              // });
+              const newAppointmentDB = await Appointment.create({
+                aptId: id,
+                patNum: PatNum,
+                aptNum: AptNum
+              }).catch(err => {
+                logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
+                console.error(err.stack);
+              });
 
               return {
                 status: 'MATCHING',
@@ -336,6 +340,7 @@ app.post('/populate', async (req, res) => {
 
     res.json({ message: 'Appointments are populated in the database' });
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -347,6 +352,7 @@ app.get('/acuity/webhook', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -361,6 +367,7 @@ app.post('/acuity/webhook', async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -375,6 +382,7 @@ app.delete('/acuity/webhook/:id', async (req, res) => {
 
     res.json({ message: `A subscription with the id '${id}' deleted` });
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -386,6 +394,7 @@ app.get('/acuity/appointments', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -400,6 +409,7 @@ app.get('/acuity/appointments/:id', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -410,6 +420,7 @@ app.get('/acuity/appointment-types', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -420,6 +431,7 @@ app.get('/acuity/calendars', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -430,6 +442,7 @@ app.get('/acuity/forms', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -441,6 +454,7 @@ app.get('/opendental/patients', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -455,6 +469,7 @@ app.get('/opendental/patients/:id', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -465,6 +480,22 @@ app.get('/opendental/appointments', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
+    apiErrorHandler(err, req, res);
+  }
+});
+
+app.get('/opendental/appointments/:id', async (req, res) => {
+  const { AptNum } = req.query;
+
+  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
+
+  try {
+    const { data } = await openDentalApiHelpers.listAppointment(AptNum);
+
+    res.json(data);
+  } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -481,6 +512,7 @@ app.post('/opendental/patients', async (req, res) => {
 
     res.status(201).json(data); // automatically ignores duplicates
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -499,6 +531,7 @@ app.post('/opendental/appointments', async (req, res) => {
 
     res.status(201).json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -515,6 +548,7 @@ app.put('/opendental/appointments/:id', async (req, res) => {
 
     res.json({ message: `Updated an appointment with the id '${AptNum}'` }); // AptDateTime(ASC)
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -531,6 +565,7 @@ app.put('/opendental/appointments/:id/break', async (req, res) => {
 
     res.json({ message: `Broke an appointment with the id '${id}'` });
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -545,6 +580,7 @@ app.put('/opendental/patients/:id', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -619,17 +655,4 @@ mongoose.connection.once('open', () => {
 mongoose.connection.on('error', err => {
   logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
   console.error(err.stack);
-})
-
-// FIXME:
-// [v] update subscriptions to new ngrok public ip address
-// [v] :id should be retrieved from req.query when making GET/DELETE request.
-
-// TODO:
-// [v] use GET /appointments to make API call to OpenDental
-// [v] create OpenDental helpers
-// [v] create OpenDental routes
-// [v] implement async await on all routes
-// [v] create a POST route (delete all subscriptions. Then add all subscriptions under new public URL)
-// [v] integrate OpenDental into POST /notification. use 'switch & cases'
-// [ ] use MVC framework pattern
+});

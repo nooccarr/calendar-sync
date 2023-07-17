@@ -1,19 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
 
-const listPatient = (PatNum) => {
-  const options = {
-    method: 'GET',
-    url: `https://api.opendental.com/api/v1/patients/${PatNum}`,
-    headers: {
-      Authorization: process.env.OPENDENTAL_URI,
-      'Content-Type': 'application/json'
-    }
-  };
-
-  return axios.request(options);
-};
-
 const listPatients = (params) => {
   const options = {
     method: 'GET',
@@ -28,11 +15,37 @@ const listPatients = (params) => {
   return axios.request(options);
 };
 
+const listPatient = (PatNum) => {
+  const options = {
+    method: 'GET',
+    url: `https://api.opendental.com/api/v1/patients/${PatNum}`,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
+  };
+
+  return axios.request(options);
+};
+
 const listAppointments = (params) => {
   const options = {
     method: 'GET',
     url: 'https://api.opendental.com/api/v1/appointments',
     params,
+    headers: {
+      Authorization: process.env.OPENDENTAL_URI,
+      'Content-Type': 'application/json'
+    }
+  };
+
+  return axios.request(options);
+};
+
+const listAppointment = (AptNum) => {
+  const options = {
+    method: 'GET',
+    url: `https://api.opendental.com/api/v1/appointments/${AptNum}`,
     headers: {
       Authorization: process.env.OPENDENTAL_URI,
       'Content-Type': 'application/json'
@@ -110,12 +123,13 @@ const updatePatient = (id, data) => {
   };
 
   return axios.request(options);
-}
+};
 
 module.exports = {
-  listPatient,
   listPatients,
+  listPatient,
   listAppointments,
+  listAppointment,
   createNewPatient,
   createNewAppointment,
   updateAppointment,
