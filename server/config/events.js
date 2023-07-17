@@ -1,6 +1,6 @@
 module.exports = {
   ACUITY_EVENTS: [
-    // 'appointment.scheduled',
+    'appointment.scheduled',
     // 'appointment.rescheduled',
     // 'appointment.canceled',
     'appointment.changed'
