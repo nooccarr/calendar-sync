@@ -260,7 +260,7 @@ app.post('/populate', async (req, res) => {
             FName: firstName,
             Birthdate: birthDate,
             Phone: phone
-          }).catch(err => console.error(`${err.name}, ${err.message}, ${err.code}, ${err.response?.data}`));
+          }).catch(err => apiErrorLogger(err, req, res));
 
           const patientCount = patients?.data?.length;
 
@@ -291,7 +291,7 @@ app.post('/populate', async (req, res) => {
             // get all appointments (Open Dental)
             const appointments = await openDentalApiHelpers.listAppointments(
               { PatNum, date }
-            ).catch(err => console.error(`${err.name}, ${err.message}, ${err.code}, ${err.response?.data}`));;
+            ).catch(err => apiErrorHandler(err, req, res));;
 
             const appointmentCount = appointments?.data?.length;
 
@@ -317,10 +317,7 @@ app.post('/populate', async (req, res) => {
                 aptId: id,
                 patNum: PatNum,
                 aptNum: AptNum
-              }).catch(err => {
-                logEvents(err.stack.split('\n')[0], 'mongoErrLog.log');
-                console.error(err.stack);
-              });
+              }).catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
 
               return {
                 status: 'MATCHING',

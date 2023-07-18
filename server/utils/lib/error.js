@@ -21,16 +21,16 @@ exports.apiErrorLogger = (err, req, res, isWebhook = false) => {
 
   if (typeof data === 'string') {
     if (isWebhook) {
-      message = `${req.method} ${req.url} ${err.response.data} ${err.config.method.toUpperCase()} ${err.config.url}`;
+      message = `${req.method}\t${req.url}\t${err.response.data}\t${err.config.method.toUpperCase()}\t${err.config.url}`;
     } else {
-      message = `${req.method} ${req.url} ${err.response.data}`;
+      message = `${req.method}\t${req.url}\t${err.response.data}`;
     }
   } else if (typeof data === 'object') {
-    message = `${req.method} ${req.url} ${JSON.stringify(err.response.data)}`;
+    message = `${req.method}\t${req.url}\t${JSON.stringify(err.response.data)}`;
   } else if (err.cause) {
-    message = `${req.method} ${req.url} ${JSON.stringify(err.cause)}`;
+    message = `${req.method}\t${req.url}\t${JSON.stringify(err.cause)}`;
   } else {
-    message = `${req.method} ${req.url} ${err.message}`;
+    message = `${req.method}\t${req.url}\t${err.name}\t${err.message}\t${err.code}\t${JSON.stringify(err.response?.data)}`;
   }
 
   logEvents(message, 'apiErrLog.log');
