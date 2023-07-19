@@ -19,7 +19,17 @@ exports.apiErrorLogger = (err, req, res, isWebhook = false) => {
 
   let message = '';
 
-  if (typeof data === 'string') {
+  if (!req || !res) {
+    if (typeof data === 'string') {
+      message = `${err.response.data}`;
+    } else if (typeof data === 'object') {
+      message = `${JSON.stringify(err.response.data)}`;
+    } else if (err.cause) {
+      message = `${JSON.stringify(err.cause)}`;
+    } else {
+      message = `${err.name}\t${err.message}\t${err.code}\t${JSON.stringify(err.response?.data)}`;
+    }
+  } else if (typeof data === 'string') {
     if (isWebhook) {
       message = `${req.method}\t${req.url}\t${err.response.data}\t${err.config.method.toUpperCase()}\t${err.config.url}`;
     } else {
@@ -34,4 +44,4 @@ exports.apiErrorLogger = (err, req, res, isWebhook = false) => {
   }
 
   logEvents(message, 'apiErrLog.log');
-}
+};

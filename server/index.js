@@ -617,7 +617,6 @@ mongoose.connection.once('open', () => {
   console.log('Connected to MongoDB');
 
   app.listen(PORT, async () => {
-    // launching tunnel
     const tunnel = await localtunnel({ port: PORT });
 
     try {
@@ -639,13 +638,12 @@ mongoose.connection.once('open', () => {
       );
 
       // const subscribed = addWebhooks.map(({ data }) => data);
-
       // console.log(subscribed);
     } catch (err) {
-      console.error(err);
+      apiErrorLogger(err);
     }
 
-    tunnel.on('close', () => { console.log('Listening to webhook stopped') });
+    tunnel.on('close', () => { console.log('Stopped listening to webhook events') });
 
     console.log(`Server running on port ${PORT}`);
   });
