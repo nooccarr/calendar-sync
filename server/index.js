@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const crypto = require('crypto');
+// const crypto = require('crypto');
 const compression = require('compression');
+const localtunnel = require('localtunnel');
 const { logEvents, logger } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const axios = require('axios');
@@ -59,7 +60,7 @@ app.post('/notification', async (req, res) => {
 
   const { action, id, appointmentTypeID } = req.body;
 
-  logEvents(`${action}\tid:${id}\taptTypeId:${appointmentTypeID}`, 'webhookLog.log');
+  logEvents(`action: ${action}\tid: ${id}\taptTypeId: ${appointmentTypeID}`, 'webhookLog.log');
 
   try {
     // get an appointment with matching ID
@@ -205,38 +206,6 @@ app.post('/notification', async (req, res) => {
     }
   } catch (err) {
     apiErrorLogger(err, req, res, true);
-    apiErrorHandler(err, req, res);
-  }
-});
-
-// route: reset webhooks (new URL)
-app.post('/subscription', async (req, res) => {
-  const { url } = req.body;
-
-  if (!url) return res.status(400).json({ message: 'URL required' });
-
-  try {
-    const webhooks = await acuityWebhookHelpers.listActiveWebhooks();
-
-    const ids = webhooks.data.map(({ id }) => id);
-
-    const deleteWebhooks = await axios.all(
-      ids.map(
-        async (id) => await acuityWebhookHelpers.deleteWebhook(id)
-      )
-    );
-
-    const addWebhooks = await axios.all(
-      ACUITY_EVENTS.map(
-        async (event) => await acuityWebhookHelpers.createNewWebhook(event, `${url}/notification`)
-      )
-    );
-
-    const subscribed = addWebhooks.map(({ data }) => data);
-
-    res.json(subscribed);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
   }
 });
@@ -646,7 +615,40 @@ app.use(errorHandler);
 
 mongoose.connection.once('open', () => {
   console.log('Connected to MongoDB');
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+  app.listen(PORT, async () => {
+    // launching tunnel
+    const tunnel = await localtunnel({ port: PORT });
+
+    try {
+      // reset webhook subscriptions
+      const webhooks = await acuityWebhookHelpers.listActiveWebhooks();
+
+      const ids = webhooks.data.map(({ id }) => id);
+
+      const deleteWebhooks = await axios.all(
+        ids.map(
+          async (id) => await acuityWebhookHelpers.deleteWebhook(id)
+        )
+      );
+
+      const addWebhooks = await axios.all(
+        ACUITY_EVENTS.map(
+          async (event) => await acuityWebhookHelpers.createNewWebhook(event, `${tunnel.url}/notification`)
+        )
+      );
+
+      // const subscribed = addWebhooks.map(({ data }) => data);
+
+      // console.log(subscribed);
+    } catch (err) {
+      console.error(err);
+    }
+
+    tunnel.on('close', () => { console.log('Listening to webhook stopped') });
+
+    console.log(`Server running on port ${PORT}`);
+  });
 });
 
 mongoose.connection.on('error', err => {
