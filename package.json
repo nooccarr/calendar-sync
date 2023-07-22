@@ -7,7 +7,7 @@
   "license": "ISC",
   "scripts": {
     "start-dev": "nodemon server/index.js",
-    "start": "node server/index.js"
+    "start": "pm2 start server/index.js"
   },
   "repository": {
     "type": "git",

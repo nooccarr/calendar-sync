@@ -74,14 +74,14 @@ const populateDatabase = async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // // store appointment in the database
-              // const { AptNum } = appointments.data[0];
+              // store appointment in the database
+              const { AptNum } = appointments.data[0];
 
-              // const newAppointmentDB = await Appointment.create({
-              //   aptId: id,
-              //   patNum: PatNum,
-              //   aptNum: AptNum
-              // }).catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
+              const newAppointmentDB = await Appointment.create({
+                aptId: id,
+                patNum: PatNum,
+                aptNum: AptNum
+              }).catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
 
               return {
                 status: 'MATCHING',
