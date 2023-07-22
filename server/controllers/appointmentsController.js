@@ -2,50 +2,53 @@ const Appointment = require('../model/Appointment');
 
 const getAppointments = async (req, res) => {
   const appointments = await Appointment.find();
-  if (appointments?.length === 0) return res.status(204).json({ message: 'No appointments found' });
-  res.json(appointments);
+
+  return appointments;
+};
+
+const getAppointment = async (req, res) => {
+  const { aptId } = req.query;
+
+  if (!aptId) throw Error('Id required');
+
+  const appointment = await Appointment.findOne({ aptId });
+
+  return appointment;
 };
 
 const createAppointment = async (req, res) => {
   const { id, PatNum, AptNum } = req.body;
 
   if (!id || !PatNum || !AptNum) {
-    return res.status(400).json({ message: 'Id, patient number, and appointment number required' });
+    throw Error('Id, patient number, and appointment number required');
   }
 
-  try {
-    const result = await Appointment.create({
-      aptId: id,
-      patNum: PatNum,
-      aptNum: AptNum
-    });
+  const result = await Appointment.create({
+    aptId: id,
+    patNum: PatNum,
+    aptNum: AptNum
+  });
 
-    res.status(201).json(result);
-  } catch (err) {
-    res.json({ Error: err.message });
-  }
+  return result;
 };
 
 const deleteAppointment = async (req, res) => {
   const { id } = req.body;
 
-  if (!id) return res.status(400).json({ message: 'Appointment ID required' });
+  if (!id) throw Error('Appointment ID required');
 
-  try {
-    const appointment = await Appointment.findOne({ aptId: id }).exec();
+  const appointment = await Appointment.findOne({ aptId: id }).exec();
 
-    if (!appointment) return res.status(400).json({ message: `No appointment matches ID ${id}` });
+  if (!appointment) throw Error(`No appointment matches ID ${id}`);
 
-    const result = await Appointment.deleteOne({ aptId: id });
+  const result = await Appointment.deleteOne({ aptId: id });
 
-    res.json(result);
-  } catch (err) {
-    res.json({ Error: err.message });
-  }
+  return result;
 };
 
 module.exports = {
   getAppointments,
+  getAppointment,
   createAppointment,
   deleteAppointment
 };

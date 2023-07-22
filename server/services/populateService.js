@@ -1,32 +1,37 @@
 const axios = require('axios');
 const { format, parseISO } = require('date-fns');
 const { logEvents } = require('../middleware/logger');
-const acuityApiHelpers = require('../helpers/acuityApiHelpers');
-const openDentalApiHelpers = require('../helpers/openDentalApiHelpers');
-const Appointment = require('../model/Appointment');
+const acuityController = require('../controllers/acuityController');
+const openDentalController = require('../controllers/openDentalController');
+const appointmentsController = require('../controllers/appointmentsController');
 const { formatDateOfBirth } = require('../utils/index').Acuity;
 const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 
 const populateDatabase = async (req, res) => {
   try {
     // get all appointments (Acuity Scheduling)
-    const appointments = await acuityApiHelpers.listAppointments({ max: 1000 });
+    const params = { query: { max: 10 } };
+    const appointments = await acuityController.getAppointments(params);
 
     const syncAppointments = await axios.all(
-      appointments?.data.map(
+      appointments?.map(
         async ({ id, lastName, firstName, phone, datetime, forms }) => {
 
           // get all patients (Open Dental)
           const birthDate = formatDateOfBirth(forms);
 
-          const patients = await openDentalApiHelpers.listPatients({
-            LName: lastName,
-            FName: firstName,
-            Birthdate: birthDate,
-            Phone: phone
-          }).catch(err => apiErrorLogger(err, req, res));
+          const params = {
+            query: {
+              LName: lastName,
+              FName: firstName,
+              Birthdate: birthDate,
+              Phone: phone
+            }
+          };
+          const patients = await openDentalController.getPatients(params)
+            .catch(err => apiErrorLogger(err, req, res));
 
-          const patientCount = patients?.data?.length;
+          const patientCount = patients?.length;
 
           if (patientCount === 0) {
             return {
@@ -48,16 +53,17 @@ const populateDatabase = async (req, res) => {
           }
 
           if (patientCount === 1) {
-            const { PatNum } = patients.data[0];
+            const { PatNum } = patients[0];
 
             const date = format(parseISO(datetime), 'yyyy-MM-dd');
 
             // get all appointments (Open Dental)
-            const appointments = await openDentalApiHelpers.listAppointments(
-              { PatNum, date }
-            ).catch(err => apiErrorHandler(err, req, res));;
+            const params = { query: { PatNum, date } };
 
-            const appointmentCount = appointments?.data?.length;
+            const appointments = await openDentalController.getAppointments(params)
+              .catch(err => apiErrorHandler(err, req, res));;
+
+            const appointmentCount = appointments?.length;
 
             if (appointmentCount === 0) {
               return {
@@ -74,14 +80,13 @@ const populateDatabase = async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // store appointment in the database
-              const { AptNum } = appointments.data[0];
+              // // store appointment in the database
+              // const { AptNum } = appointments[0];
 
-              const newAppointmentDB = await Appointment.create({
-                aptId: id,
-                patNum: PatNum,
-                aptNum: AptNum
-              }).catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
+              // const params = { body: { id, PatNum, AptNum } };
+
+              // const newAppointmentDB = await appointmentsController.createAppointment(params)
+              //   .catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
 
               return {
                 status: 'MATCHING',

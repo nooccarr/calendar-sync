@@ -3,70 +3,43 @@ const acuityApiHelpers = require('../helpers/acuityApiHelpers');
 const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 
 const getWebhooks = async (req, res) => {
-  try {
-    const { data } = await acuityWebhookHelpers.listActiveWebhooks();
+  const { data } = await acuityWebhookHelpers.listActiveWebhooks();
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const createWebhook = async (req, res) => {
   const { event, target } = req.body; // target: webhook endpoint
 
-  if (!event || !target) return res.status(400).json({ message: 'Event and target are required' });
+  if (!event || !target) throw Error('Event and target are required');
 
-  try {
-    const { data } = await acuityWebhookHelpers.createNewWebhook(event, target);
+  const { data } = await acuityWebhookHelpers.createNewWebhook(event, target);
 
-    res.status(201).json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const deleteWebhook = async (req, res) => {
   const { id } = req.query; // subscription ID
 
-  if (!id) return res.status(400).json({ message: 'ID required' });
+  if (!id) throw Error('ID required');
 
-  try {
-    const response = await acuityWebhookHelpers.deleteWebhook(id);
-
-    res.json({ message: `A subscription with the id '${id}' deleted` });
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  await acuityWebhookHelpers.deleteWebhook(id);
 };
 
 const getAppointments = async (req, res) => {
-  try {
-    const { data } = await acuityApiHelpers.listAppointments(req.query);
+  const { data } = await acuityApiHelpers.listAppointments(req.query);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const getAppointment = async (req, res) => {
   const { id } = req.query;
 
-  if (!id) return res.status(400).json({ message: 'ID required' });
+  if (!id) throw Error('ID required');
 
-  try {
-    const { data } = await acuityApiHelpers.listAppointmentById(req.query);
+  const { data } = await acuityApiHelpers.listAppointmentById(req.query);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const getAppointmentTypes = async (req, res) => {

@@ -2,55 +2,35 @@ const openDentalApiHelpers = require('../helpers/openDentalApiHelpers');
 const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 
 const getPatients = async (req, res) => {
-  try {
-    const { data } = await openDentalApiHelpers.listPatients(req.query);
+  const { data } = await openDentalApiHelpers.listPatients(req.query);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const getPatient = async (req, res) => {
   const { PatNum } = req.query;
 
-  if (!PatNum) return res.status(400).json({ message: 'Patient number required' })
+  if (!PatNum) throw Error('Patient number required');
 
-  try {
-    const { data } = await openDentalApiHelpers.listPatient(PatNum);
+  const { data } = await openDentalApiHelpers.listPatient(PatNum);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const getAppointments = async (req, res) => {
-  try {
-    const { data } = await openDentalApiHelpers.listAppointments(req.query);
+  const { data } = await openDentalApiHelpers.listAppointments(req.query);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const getAppointment = async (req, res) => {
   const { AptNum } = req.query;
 
-  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
+  if (!AptNum) throw Error('Appointment number required');
 
-  try {
-    const { data } = await openDentalApiHelpers.listAppointment(AptNum);
+  const { data } = await openDentalApiHelpers.listAppointment(AptNum);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const createPatient = async (req, res) => {
@@ -126,16 +106,11 @@ const breakAppointment = async (req, res) => {
 const updatePatient = async (req, res) => {
   const { PatNum } = req.query;
 
-  if (!PatNum) return res.status(400).json({ message: 'Patient number required' });
+  if (!PatNum) throw Error('Patient number required');
 
-  try {
-    const { data } = await openDentalApiHelpers.updatePatient(PatNum, req.body);
+  const { data } = await openDentalApiHelpers.updatePatient(PatNum, req.body);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 module.exports = {
