@@ -33,6 +33,7 @@ const handleWebhook = async (req, res) => {
 
     // event handler goes here
     switch (action) {
+      // TODO:
       // case 'appointment.scheduled': {
       //   // get a list of patients
       //   const patients = await openDentalApiHelpers.listPatients({
@@ -88,43 +89,57 @@ const handleWebhook = async (req, res) => {
 
       //   break;
       // }
-      // case 'appointment.rescheduled': {
-      //   // query the DB
-      //   const appointmentDB = await Appointment.findOne({ aptId: id });
+      case 'appointment.rescheduled': {
+        // query the DB
+        const paramsDB = { query: { aptId: id } };
+        const appointmentDB = await appointmentController.getAppointment(paramsDB);
 
-      //   if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-      //   // update appointment
-      //   const { aptNum } = appointmentDB;
+        // update appointment
+        const { aptNum } = appointmentDB;
 
-      //   const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-      //   const response = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+        const params = {
+          query: { AptNum: aptNum },
+          body: { AptDateTime }
+        };
+        const response = await openDentalController.updateAppointment(params);
 
-      //   res.json({ message: `Updated an appointment with ID ${id}` });
+        res.json({ message: `Updated an appointment with ID ${id}` });
 
-      //   break;
-      // }
-      // case 'appointment.canceled': {
-      //   // query the DB
-      //   const appointmentDB = await Appointment.findOne({ aptId: id });
+        break;
+      }
+      case 'appointment.canceled': {
+        // query the DB
+        const paramsDB = { query: { aptId: id } };
+        const appointmentDB = await appointmentController.getAppointment(paramsDB);
 
-      //   if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
+        if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
-      //   // update an appointment
-      //   const { aptNum } = appointmentDB;
+        // update an appointment
+        const { aptNum } = appointmentDB;
 
-      //   const AptDateTime = toStartOfWeek(datetime);
+        const AptDateTime = toStartOfWeek(datetime);
 
-      //   const updateAppointment = await openDentalApiHelpers.updateAppointment(aptNum, { AptDateTime });
+        const updateParams = {
+          query: { AptNum: aptNum },
+          body: { AptDateTime }
+        };
+        const updateAppointment = await openDentalController.updateAppointment(updateParams);
 
-      //   // break an appointment
-      //   const breakAppointment = await openDentalApiHelpers.breakAppointment(aptNum, { sendToUnscheduledList: false });
+        // break an appointment
+        const breakParams = {
+          query: { AptNum: aptNum },
+          body: { sendToUnscheduledList: false }
+        };
+        const breakAppointment = await openDentalController.breakAppointment(breakParams);
 
-      //   res.json({ message: `Deleted an appointment with ID ${id}` });
+        res.json({ message: `Deleted an appointment with ID ${id}` });
 
-      //   break;
-      // }
+        break;
+      }
       case 'appointment.changed': {
         // query the DB
         const paramsDB = { query: { aptId: id } };

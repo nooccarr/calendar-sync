@@ -73,34 +73,20 @@ const updateAppointment = async (req, res) => {
   const { AptNum } = req.query;
   const { AptDateTime } = req.body;
 
-  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
-  if (!AptDateTime) return res.status(400).json({ message: 'Appointment date & time required' });
+  if (!AptNum) throw Error('Appointment number required');
+  if (!AptDateTime) throw Error('Appointment date & time required');
 
-  try {
-    const response = await openDentalApiHelpers.updateAppointment(AptNum, req.body);
-
-    res.json({ message: `Updated an appointment with the id '${AptNum}'` }); // AptDateTime(ASC)
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  await openDentalApiHelpers.updateAppointment(AptNum, req.body);
 };
 
 const breakAppointment = async (req, res) => {
   const { AptNum } = req.query;
   const { sendToUnscheduledList } = req.body;
 
-  if (!AptNum) return res.status(400).json({ message: 'Appointment number required' });
-  if (!sendToUnscheduledList) return res.status(400).json({ message: 'Send to unscheduled list required' });
+  if (!AptNum) throw Error('Appointment number required');
+  if (sendToUnscheduledList === undefined) throw Error('Send to unscheduled list required');
 
-  try {
-    const response = await openDentalApiHelpers.breakAppointment(AptNum, req.body);
-
-    res.json({ message: `Broke an appointment with the id '${id}'` });
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  await openDentalApiHelpers.breakAppointment(AptNum, req.body);
 };
 
 const updatePatient = async (req, res) => {
