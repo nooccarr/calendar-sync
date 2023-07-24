@@ -26,7 +26,11 @@ const resetWebhooks = async () => {
   const addWebhooks = await axios.all(
     ACUITY_EVENTS.map(
       async (event) => {
-        await createWebhook({ body: { event, target: tunnel.url } })
+        await createWebhook({
+          body: {
+            event, target: `${tunnel.url}/notification`
+          }
+        })
           .catch(err => apiErrorLogger(err));
       })
   );
