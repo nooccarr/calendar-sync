@@ -1,6 +1,5 @@
 const acuityWebhookHelpers = require('../helpers/acuityWebhookHelpers');
 const acuityApiHelpers = require('../helpers/acuityApiHelpers');
-const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 
 const getWebhooks = async (req, res) => {
   const { data } = await acuityWebhookHelpers.listActiveWebhooks();
@@ -43,36 +42,24 @@ const getAppointment = async (req, res) => {
 };
 
 const getAppointmentTypes = async (req, res) => {
-  try {
-    const { data } = await acuityApiHelpers.listAppointmentTypes(req.query);
+  const { data } = await acuityApiHelpers.listAppointmentTypes(req.query);
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
+
 };
 
 const getCalendars = async (req, res) => {
-  try {
-    const { data } = await acuityApiHelpers.listCalendars();
+  const { data } = await acuityApiHelpers.listCalendars();
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
+
 };
 
 const getForms = async (req, res) => {
-  try {
-    const { data } = await acuityApiHelpers.listForms();
+  const { data } = await acuityApiHelpers.listForms();
 
-    res.json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
+
 };
 
 module.exports = {

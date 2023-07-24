@@ -10,8 +10,7 @@ const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 const populateDatabase = async (req, res) => {
   try {
     // get all appointments (Acuity Scheduling)
-    const params = { query: { max: 10 } };
-    const appointments = await acuityController.getAppointments(params);
+    const appointments = await acuityController.getAppointments({ query: { max: 10000 } });
 
     const syncAppointments = await axios.all(
       appointments?.map(
@@ -20,15 +19,14 @@ const populateDatabase = async (req, res) => {
           // get all patients (Open Dental)
           const birthDate = formatDateOfBirth(forms);
 
-          const params = {
+          const patients = await openDentalController.getPatients({
             query: {
               LName: lastName,
               FName: firstName,
               Birthdate: birthDate,
               Phone: phone
             }
-          };
-          const patients = await openDentalController.getPatients(params)
+          })
             .catch(err => apiErrorLogger(err, req, res));
 
           const patientCount = patients?.length;
@@ -58,9 +56,7 @@ const populateDatabase = async (req, res) => {
             const date = format(parseISO(datetime), 'yyyy-MM-dd');
 
             // get all appointments (Open Dental)
-            const params = { query: { PatNum, date } };
-
-            const appointments = await openDentalController.getAppointments(params)
+            const appointments = await openDentalController.getAppointments({ query: { PatNum, date } })
               .catch(err => apiErrorHandler(err, req, res));;
 
             const appointmentCount = appointments?.length;
@@ -80,13 +76,11 @@ const populateDatabase = async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // // store appointment in the database
-              // const { AptNum } = appointments[0];
+              // store appointment in the database
+              const { AptNum } = appointments[0];
 
-              // const params = { body: { id, PatNum, AptNum } };
-
-              // const newAppointmentDB = await appointmentsController.createAppointment(params)
-              //   .catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
+              const newAppointmentDB = await appointmentsController.createAppointment({ body: { id, PatNum, AptNum } })
+                .catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
 
               return {
                 status: 'MATCHING',
@@ -111,6 +105,4 @@ const populateDatabase = async (req, res) => {
   }
 };
 
-module.exports = {
-  populateDatabase
-};
+module.exports = { populateDatabase };

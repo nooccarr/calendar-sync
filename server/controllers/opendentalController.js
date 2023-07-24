@@ -36,37 +36,25 @@ const getAppointment = async (req, res) => {
 const createPatient = async (req, res) => {
   const { LName, FName, Birthdate } = req.body;
 
-  if (!LName || !FName) return res.status(400).json({ message: 'Last name and first name are required' });
+  if (!LName || !FName) throw Error('Last name and first name are required');
 
   if (!Birthdate) req.body.Birthdate = '0001-01-01';
 
-  try {
-    const { data } = await openDentalApiHelpers.createNewPatient(req.body);
+  const { data } = await openDentalApiHelpers.createNewPatient(req.body);
 
-    res.status(201).json(data); // automatically ignores duplicates
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data; // automatically ignores duplicates
 };
 
 const createAppointment = async (req, res) => {
   const { PatNum, AptDateTime } = req.body; // AppointmentTypeNum: 2 ~ 5
 
   if (!PatNum || !AptDateTime) {
-    return res.status(400).json({ message: 'Patient number and appointment date & time required' });
+    throw Error('Patient number and appointment date & time required');
   }
 
-  req.body.Op = 1;
+  const { data } = await openDentalApiHelpers.createNewAppointment(req.body);
 
-  try {
-    const { data } = await openDentalApiHelpers.createNewAppointment(req.body);
-
-    res.status(201).json(data);
-  } catch (err) {
-    apiErrorLogger(err, req, res);
-    apiErrorHandler(err, req, res);
-  }
+  return data;
 };
 
 const updateAppointment = async (req, res) => {

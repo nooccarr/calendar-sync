@@ -1,21 +1,16 @@
 const { format, parseISO } = require('date-fns');
 const { logEvents } = require('../middleware/logger');
 const { APPOINTMENT_TYPES, OPERATORY } = require('../config/events');
-const acuityApiHelpers = require('../helpers/acuityApiHelpers');
-const openDentalApiHelpers = require('../helpers/openDentalApiHelpers');
-
 const acuityController = require('../controllers/acuityController');
 const openDentalController = require('../controllers/openDentalController');
 const appointmentController = require('../controllers/appointmentsController');
-
-const Appointment = require('../model/Appointment');
 const { formatDateOfBirth, formatPhoneNumber, base64Hash, toStartOfWeek } = require('../utils/index').Acuity;
 const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
 
 const handleWebhook = async (req, res) => {
 
   if (base64Hash(req.body) !== req.header('X-Acuity-Signature')) {
-    // return res.status(403).json({ message: 'This message was forged!' });
+    return res.status(403).json({ message: 'This message was forged!' });
   }
 
   const { action, id, appointmentTypeID } = req.body;
@@ -24,8 +19,7 @@ const handleWebhook = async (req, res) => {
 
   try {
     // get an appointment with matching ID
-    const params = { query: { id, pastFormAnswers: 'false' } };
-    const appointment = await acuityController.getAppointment(params);
+    const appointment = await acuityController.getAppointment({ query: { id, pastFormAnswers: 'false' } });
 
     let { firstName, lastName, phone, email, datetime, forms } = appointment;
 
@@ -33,66 +27,68 @@ const handleWebhook = async (req, res) => {
 
     // event handler goes here
     switch (action) {
-      // TODO:
-      // case 'appointment.scheduled': {
-      //   // get a list of patients
-      //   const patients = await openDentalApiHelpers.listPatients({
-      //     LName: lastName,
-      //     FName: firstName,
-      //     Birthdate: birthDate,
-      //     Phone: phone
-      //   });
+      case 'appointment.scheduled': {
+        // get a list of patients
+        const patients = await openDentalController.getPatients({
+          query: {
+            LName: lastName,
+            FName: firstName,
+            Birthdate: birthDate,
+            Phone: phone
+          }
+        });
 
-      //   const patientCount = patients.data.length;
+        const patientCount = patients.length;
 
-      //   let PatNum;
+        let PatNum;
 
-      //   // if no patient or many patients found, create a new patient
-      //   if (patientCount !== 1) {
-      //     const newPatient = await openDentalApiHelpers.createNewPatient({
-      //       LName: lastName,
-      //       FName: firstName,
-      //       Birthdate: birthDate,
-      //       WirelessPhone: phone,
-      //       Email: email
-      //     });
+        // if no patient or many patients found, create a new patient
+        if (patientCount !== 1) {
+          const newPatient = await openDentalController.createPatient({
+            body: {
+              LName: lastName,
+              FName: firstName,
+              Birthdate: birthDate,
+              WirelessPhone: phone,
+              Email: email
+            }
+          });
 
-      //     PatNum = newPatient.data.PatNum;
-      //   }
+          PatNum = newPatient.PatNum;
+        }
 
-      //   // create a new appointment
-      //   PatNum = PatNum || patients.data[0].PatNum; // if patientCount === 1
+        // create a new appointment
+        PatNum = PatNum || patients[0].PatNum; // if patientCount === 1
 
-      //   const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
+        const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-      //   const AppointmentTypeNum = patientCount <= 1 ?
-      //     APPOINTMENT_TYPES[appointmentTypeID] :
-      //     APPOINTMENT_TYPES['manyEntriesFound'];
+        const AppointmentTypeNum = patientCount <= 1 ?
+          APPOINTMENT_TYPES[appointmentTypeID] :
+          APPOINTMENT_TYPES['manyEntriesFound'];
 
-      //   const newAppointment = await openDentalApiHelpers.createNewAppointment({
-      //     PatNum,
-      //     AptDateTime,
-      //     AppointmentTypeNum,
-      //     Op: OPERATORY['Op1']
-      //   });
+        const newAppointment = await openDentalController.createAppointment({
+          body: {
+            PatNum,
+            AptDateTime,
+            AppointmentTypeNum,
+            Op: OPERATORY['Op1']
+          }
+        });
 
-      //   // store id, appointment number, and patient number to the DB
-      //   const { AptNum } = newAppointment.data;
+        // store id, appointment number, and patient number to the DB
+        const { AptNum } = newAppointment;
 
-      //   const newAppointmentDB = await Appointment.create({
-      //     aptId: id,
-      //     patNum: PatNum,
-      //     aptNum: AptNum
-      //   });
+        const newAppointmentDB = await appointmentController.createAppointment(
+          { body: { id, PatNum, AptNum } }
+        );
 
-      //   res.status(201).json(newAppointmentDB);
+        res.status(201).json(newAppointmentDB);
 
-      //   break;
-      // }
+        break;
+      }
       case 'appointment.rescheduled': {
         // query the DB
-        const paramsDB = { query: { aptId: id } };
-        const appointmentDB = await appointmentController.getAppointment(paramsDB);
+        const appointmentDB = await appointmentController.getAppointment({ query: { aptId: id } });
 
         if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
@@ -101,11 +97,10 @@ const handleWebhook = async (req, res) => {
 
         const AptDateTime = format(parseISO(datetime), 'yyyy-MM-dd HH:mm:ss');
 
-        const params = {
+        const response = await openDentalController.updateAppointment({
           query: { AptNum: aptNum },
           body: { AptDateTime }
-        };
-        const response = await openDentalController.updateAppointment(params);
+        });
 
         res.json({ message: `Updated an appointment with ID ${id}` });
 
@@ -113,8 +108,7 @@ const handleWebhook = async (req, res) => {
       }
       case 'appointment.canceled': {
         // query the DB
-        const paramsDB = { query: { aptId: id } };
-        const appointmentDB = await appointmentController.getAppointment(paramsDB);
+        const appointmentDB = await appointmentController.getAppointment({ query: { aptId: id } });
 
         if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
@@ -123,18 +117,16 @@ const handleWebhook = async (req, res) => {
 
         const AptDateTime = toStartOfWeek(datetime);
 
-        const updateParams = {
+        const updateAppointment = await openDentalController.updateAppointment({
           query: { AptNum: aptNum },
           body: { AptDateTime }
-        };
-        const updateAppointment = await openDentalController.updateAppointment(updateParams);
+        });
 
         // break an appointment
-        const breakParams = {
+        const breakAppointment = await openDentalController.breakAppointment({
           query: { AptNum: aptNum },
           body: { sendToUnscheduledList: false }
-        };
-        const breakAppointment = await openDentalController.breakAppointment(breakParams);
+        });
 
         res.json({ message: `Deleted an appointment with ID ${id}` });
 
@@ -142,21 +134,18 @@ const handleWebhook = async (req, res) => {
       }
       case 'appointment.changed': {
         // query the DB
-        const paramsDB = { query: { aptId: id } };
-        const appointmentDB = await appointmentController.getAppointment(paramsDB);
+        const appointmentDB = await appointmentController.getAppointment({ query: { aptId: id } });
 
         if (!appointmentDB) return res.status(400).json({ message: `An appointment with ID ${id} not found in the database` });
 
         // get appointment
         const { aptNum, patNum } = appointmentDB;
 
-        const params = { query: { AptNum: aptNum } };
-        const appointment = await openDentalController.getAppointment(params);
+        const appointment = await openDentalController.getAppointment({ query: { AptNum: aptNum } });
 
         // get patient
         if (appointment) {
-          const params = { query: { PatNum: patNum } };
-          const patient = await openDentalController.getPatient(params);
+          const patient = await openDentalController.getPatient({ query: { PatNum: patNum } });
 
           // update patient
           const { LName, FName, Birthdate, WirelessPhone, Email } = patient;
@@ -164,7 +153,7 @@ const handleWebhook = async (req, res) => {
           phone = formatPhoneNumber(phone);
 
           if (LName !== lastName || FName !== firstName || Birthdate !== birthDate || WirelessPhone !== phone || Email !== email) {
-            const params = {
+            const updatePatient = await openDentalController.updatePatient({
               query: {
                 PatNum: patNum
               },
@@ -175,8 +164,7 @@ const handleWebhook = async (req, res) => {
                 WirelessPhone: phone || WirelessPhone,
                 Email: email || Email
               }
-            };
-            const updatePatient = await openDentalController.updatePatient(params);
+            });
 
             res.json({ message: `Updated a patient with ID ${id}` });
           } else {
@@ -196,6 +184,4 @@ const handleWebhook = async (req, res) => {
   }
 };
 
-module.exports = {
-  handleWebhook
-};
+module.exports = { handleWebhook };

@@ -9,7 +9,7 @@ const getAppointments = async (req, res) => {
 const getAppointment = async (req, res) => {
   const { aptId } = req.query;
 
-  if (!aptId) throw Error('Id required');
+  if (!aptId) throw Error('ID required');
 
   const appointment = await Appointment.findOne({ aptId });
 
@@ -20,7 +20,7 @@ const createAppointment = async (req, res) => {
   const { id, PatNum, AptNum } = req.body;
 
   if (!id || !PatNum || !AptNum) {
-    throw Error('Id, patient number, and appointment number required');
+    throw Error('ID, patient number, and appointment number required');
   }
 
   const result = await Appointment.create({
