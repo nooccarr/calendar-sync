@@ -9,9 +9,8 @@ const { apiErrorHandler, apiErrorLogger } = require('../helpers/index').Error;
 
 const handleWebhook = async (req, res) => {
 
-  if (base64Hash(req.body) !== req.header('X-Acuity-Signature')) {
-    // TODO: return res.status(403).json({ message: 'This message was forged!' });
-  }
+  if (base64Hash(req.body) !== req.header('X-Acuity-Signature'))
+    return res.status(403).json({ message: 'This message was forged!' });
 
   const { action, id, appointmentTypeID } = req.body;
 
