@@ -1,7 +1,7 @@
-require('dotenv').config();
 const crypto = require('crypto');
 const { format, parseISO, startOfWeek, differenceInDays, subDays } = require('date-fns');
 const { FORMS } = require('../../config/events');
+const { acuityApiKey: secret } = require('../../config/config');
 
 exports.formatDateOfBirth = (forms) => {
   const dobForm = forms.find(({ id }) => id === FORMS['dateOfBirth']);
@@ -19,7 +19,7 @@ exports.formatPhoneNumber = (phone) => {
 exports.base64Hash = (json) => {
   let params = new URLSearchParams(json);
 
-  const hash = crypto.createHmac('sha256', process.env.ACUITY_API_KEY)
+  const hash = crypto.createHmac('sha256', secret)
     .update(params.toString())
     .digest('base64');
 

@@ -1,35 +1,31 @@
 const axios = require('axios');
 const { format, parseISO } = require('date-fns');
-const { logEvents } = require('../middleware/logger');
-const acuityController = require('../controllers/acuityController');
-const openDentalController = require('../controllers/openDentalController');
-const appointmentsController = require('../controllers/appointmentsController');
-const { formatDateOfBirth } = require('../utils/index').Acuity;
-const { apiErrorHandler, apiErrorLogger } = require('../utils/index').Error;
+const acuityApiService = require('../thirdParty/acuityApiService');
+const openDentalApiService = require('../thirdParty/openDentalApiService');
+const Appointment = require('../model/Appointment');
+const { formatDateOfBirth } = require('../helpers/index').Acuity;
+const { apiErrorHandler, apiErrorLogger } = require('../helpers/index').Error;
 
 const populateDatabase = async (req, res) => {
   try {
     // get all appointments (Acuity Scheduling)
-    const appointments = await acuityController.getAppointments({ query: { max: 10000 } });
+    const appointments = await acuityApiService.listAppointments({ max: 10000 });
 
     const syncAppointments = await axios.all(
-      appointments?.map(
+      appointments.map(
         async ({ id, lastName, firstName, phone, datetime, forms }) => {
 
           // get all patients (Open Dental)
           const birthDate = formatDateOfBirth(forms);
 
-          const patients = await openDentalController.getPatients({
-            query: {
-              LName: lastName,
-              FName: firstName,
-              Birthdate: birthDate,
-              Phone: phone
-            }
-          })
-            .catch(err => apiErrorLogger(err, req, res));
+          const patients = await openDentalApiService.listPatients({
+            LName: lastName,
+            FName: firstName,
+            Birthdate: birthDate,
+            Phone: phone
+          });
 
-          const patientCount = patients?.length;
+          const patientCount = patients.length;
 
           if (patientCount === 0) {
             return {
@@ -56,10 +52,9 @@ const populateDatabase = async (req, res) => {
             const date = format(parseISO(datetime), 'yyyy-MM-dd');
 
             // get all appointments (Open Dental)
-            const appointments = await openDentalController.getAppointments({ query: { PatNum, date } })
-              .catch(err => apiErrorHandler(err, req, res));;
+            const appointments = await openDentalApiService.listAppointments({ PatNum, date });
 
-            const appointmentCount = appointments?.length;
+            const appointmentCount = appointments.length;
 
             if (appointmentCount === 0) {
               return {
@@ -76,11 +71,14 @@ const populateDatabase = async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // store appointment in the database
-              const { AptNum } = appointments[0];
+              // // store appointment in the database
+              // const { AptNum } = appointments[0];
 
-              const newAppointmentDB = await appointmentsController.createAppointment({ body: { id, PatNum, AptNum } })
-                .catch(err => logEvents(err.stack.split('\n')[0], 'mongoErrLog.log'));
+              // const newAppointmentDB = await Appointment.create({
+              //   aptId: id,
+              //   patNum: PatNum,
+              //   aptNum: AptNum
+              // });
 
               return {
                 status: 'MATCHING',
@@ -92,11 +90,13 @@ const populateDatabase = async (req, res) => {
 
     const hasUndefined = syncAppointments.some(appointment => appointment === undefined);
 
-    if (hasUndefined) return res.json({ message: 'Failed to populate database with appointments' });
+    if (hasUndefined)
+      return res.json({ message: 'Failed to populate database with appointments' });
 
     const notMatching = syncAppointments.filter(({ status }) => status !== 'MATCHING');
 
-    if (notMatching.length !== 0) return res.json(notMatching);
+    if (notMatching.length !== 0)
+      return res.json(notMatching);
 
     res.json({ message: 'Appointments are populated in the database' });
   } catch (err) {

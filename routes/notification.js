@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const populateService = require('../../services/populateService');
+const { handleWebhook } = require('../controllers/notificationController');
 
 router.route('/')
-  .post(populateService.populateDatabase);
+  .post(handleWebhook);
 
 module.exports = router;
