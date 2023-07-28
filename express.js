@@ -2,6 +2,7 @@ const compression = require('compression');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+// const corsOptions = require('./config/corsOptions');
 const helmet = require('helmet');
 const { logger } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');

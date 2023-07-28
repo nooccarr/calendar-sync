@@ -4,7 +4,7 @@ const { APPOINTMENT_TYPES, OPERATORY } = require('../config/events');
 const acuityApiService = require('../thirdParty/acuityApiService');
 const openDentalApiService = require('../thirdParty/openDentalApiService');
 const Appointment = require('../model/Appointment');
-const { formatDateOfBirth, formatPhoneNumber, base64Hash, toStartOfWeek } = require('../helpers/index').Acuity;
+const { formatDateOfBirth, formatPhoneNumber, base64Hash, toStartOfWeek } = require('../utils/index').Acuity;
 const { apiErrorHandler, apiErrorLogger } = require('../helpers/index').Error;
 
 const handleWebhook = async (req, res) => {

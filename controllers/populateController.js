@@ -3,7 +3,7 @@ const { format, parseISO } = require('date-fns');
 const acuityApiService = require('../thirdParty/acuityApiService');
 const openDentalApiService = require('../thirdParty/openDentalApiService');
 const Appointment = require('../model/Appointment');
-const { formatDateOfBirth } = require('../helpers/index').Acuity;
+const { formatDateOfBirth } = require('../utils/index').Acuity;
 const { apiErrorHandler, apiErrorLogger } = require('../helpers/index').Error;
 
 const populateDatabase = async (req, res) => {
