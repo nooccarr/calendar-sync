@@ -10,6 +10,8 @@ const errorHandler = require('./middleware/errorHandler');
 const rootRoute = require('./routes/root');
 const notificationRoute = require('./routes/notification');
 const populateRoute = require('./routes/populate');
+const acuityRoute = require('./routes/acuity');
+const openDentalRoute = require('./routes/opendental');
 
 const app = express();
 
@@ -29,6 +31,8 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 app.use('/', rootRoute);
 app.use('/notification', notificationRoute);
 app.use('/populate', populateRoute);
+app.use('/acuity', acuityRoute);
+app.use('/opendental', openDentalRoute);
 
 app.all('*', (req, res) => {
   res.status(404);

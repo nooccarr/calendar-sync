@@ -7,7 +7,7 @@ const { port } = require('../../config/config');
 exports.resetWebhooks = async () => {
   // const tunnel = await localtunnel({ port });
 
-  const webhooks = await listActiveWebhooks();
+  // const webhooks = await listActiveWebhooks();
 
   // const ids = webhooks.map(({ id }) => id);
 
