@@ -71,14 +71,14 @@ const populateDatabase = async (req, res) => {
             }
 
             if (appointmentCount === 1) {
-              // // store appointment in the database
-              // const { AptNum } = appointments[0];
+              // store appointment in the database
+              const { AptNum } = appointments[0];
 
-              // const newAppointmentDB = await Appointment.create({
-              //   aptId: id,
-              //   patNum: PatNum,
-              //   aptNum: AptNum
-              // });
+              const newAppointmentDB = await Appointment.create({
+                aptId: id,
+                patNum: PatNum,
+                aptNum: AptNum
+              });
 
               return {
                 status: 'MATCHING',

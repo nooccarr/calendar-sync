@@ -5,6 +5,7 @@ dotenv.config();
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 3000,
+  tunnelDomain: process.env.TUNNEL_DOMAIN,
   opendentalDomain: process.env.OPENDENTAL_DOMAIN || 'https://api.opendental.com',
   acuityUri: process.env.ACUITY_URI,
   opendentalUri: process.env.OPENDENTAL_URI,
