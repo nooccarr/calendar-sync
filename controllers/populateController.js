@@ -7,9 +7,14 @@ const { formatDateOfBirth } = require('../utils/index').Acuity;
 const { apiErrorHandler, apiErrorLogger } = require('../helpers/index').Error;
 
 const populateDatabase = async (req, res) => {
+  const { authorization: auth } = req.headers;
+
+  if (!auth)
+    return res.status(400).json({ message: 'Require Basic Authentication' });
+
   try {
     // get all appointments (Acuity Scheduling)
-    const appointments = await acuityApiService.listAppointments({ max: 10000 });
+    const appointments = await acuityApiService.listAppointments({ max: 10000 }, auth);
 
     const syncAppointments = await axios.all(
       appointments.map(
