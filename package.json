@@ -6,10 +6,9 @@
   "author": "",
   "license": "ISC",
   "scripts": {
-    "dev": "nodemon server.js",
-    "pm2": "pm2 start server.js",
-    "start": "concurrently --kill-others \"npm:tunnel\" \"npm:pm2\"",
-    "start-dev": "concurrently --kill-others \"npm:tunnel\" \"npm:dev\"",
+    "dev": "concurrently --kill-others \"npm:tunnel\" \"npm:nodemon\"",
+    "nodemon": "nodemon server.js",
+    "start": "pm2 start server.js",
     "tunnel": "ngrok start calendar-sync"
   },
   "repository": {
@@ -17,12 +16,12 @@
     "url": "git+https://github.com/nooccarr/calendar-sync.git"
   },
   "devDependencies": {
+    "concurrently": "^8.2.0",
     "nodemon": "^2.0.22"
   },
   "dependencies": {
     "axios": "^1.4.0",
     "compression": "^1.7.4",
-    "concurrently": "^8.2.0",
     "cors": "^2.8.5",
     "date-fns": "^2.30.0",
     "dotenv": "^16.3.0",
