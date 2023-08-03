@@ -30,7 +30,6 @@ mongoose.connection.once('open', () => {
           console.error(err);
           process.exit(1);
         }
-
         mongoose.connection.close();
 
         mongoose.connection.on('close', () => {
