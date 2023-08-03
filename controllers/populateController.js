@@ -96,14 +96,14 @@ const populateDatabase = async (req, res) => {
     const hasUndefined = syncAppointments.some(appointment => appointment === undefined);
 
     if (hasUndefined)
-      return res.json({ message: 'Failed to populate database with appointments' });
+      return res.json({ message: 'Syncing with appointments failed.' });
 
     const notMatching = syncAppointments.filter(({ status }) => status !== 'MATCHING');
 
     if (notMatching.length > 0)
       return res.json(notMatching);
 
-    res.json({ message: 'Appointments are populated in the database' });
+    res.json({ message: 'Appointments synced successfully.' });
   } catch (err) {
     apiErrorLogger(err, req, res);
     apiErrorHandler(err, req, res);
