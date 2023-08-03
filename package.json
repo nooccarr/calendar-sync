@@ -7,8 +7,9 @@
   "license": "ISC",
   "scripts": {
     "dev": "concurrently --kill-others \"npm:tunnel\" \"npm:nodemon\"",
+    "k6": "k6 run --vus 50 --duration 30s k8script.js",
     "nodemon": "nodemon server.js",
-    "start": "pm2 start server.js",
+    "start": "pm2 start ecosystem.config.js --env production",
     "tunnel": "ngrok start calendar-sync"
   },
   "repository": {

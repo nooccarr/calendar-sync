@@ -15,6 +15,7 @@ const openDentalRoute = require('./routes/opendental');
 
 const app = express();
 
+// compress all responses
 app.use(compression());
 app.use(logger);
 // parse body params and attach them to req.body

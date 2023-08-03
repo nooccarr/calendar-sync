@@ -3,4 +3,5 @@ node_modules
 .env
 logs
 
+k8script.js
 CalendarSyncBlueprint.md
