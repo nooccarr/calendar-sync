@@ -150,7 +150,7 @@ const breakAppointment = async (req, res) => {
     return res.status(400).json({ message: 'Require OAuth Authentication' });
   if (!AptNum)
     return res.status(400).json({ message: 'Require appointment ID' });
-  if (!req.body.hasOwnProperty('sendToUnscheduledList'))
+  if (!('sendToUnscheduledList' in req.body))
     return res.status(400).json({ message: 'Require send to unscheduled list' })
 
   try {
